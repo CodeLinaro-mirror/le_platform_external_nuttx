@@ -735,38 +735,6 @@ config DEBUG_CONTACTLESS_INFO
 
 endif # DEBUG_CONTACTLESS
 
-config DEBUG_CRYPTO
-	bool "Crypto Debug Features"
-	default n
-	depends on CRYPTO
-	---help---
-		Enable cryptographic debug features.
-
-if DEBUG_CRYPTO
-
-config DEBUG_CRYPTO_ERROR
-	bool "Crypto Error Output"
-	default n
-	depends on DEBUG_ERROR
-	---help---
-		Enable cryptographic error output to SYSLOG.
-
-config DEBUG_CRYPTO_WARN
-	bool "Crypto Warnings Output"
-	default n
-	depends on DEBUG_WARN
-	---help---
-		Enable cryptographic warning output to SYSLOG.
-
-config DEBUG_CRYPTO_INFO
-	bool "Crypto Informational Output"
-	default n
-	depends on DEBUG_INFO
-	---help---
-		Enable cryptographic informational output to SYSLOG.
-
-endif # DEBUG_CRYPTO
-
 config DEBUG_FS
 	bool "File System Debug Features"
 	default n
@@ -797,37 +765,6 @@ config DEBUG_FS_INFO
 		Enable file system informational output to SYSLOG.
 
 endif # DEBUG_FS
-
-config DEBUG_GRAPHICS
-	bool "Graphics Debug Features"
-	default n
-	---help---
-		Enable NX graphics subsystem debug features.
-
-if DEBUG_GRAPHICS
-
-config DEBUG_GRAPHICS_ERROR
-	bool "Graphics Error Output"
-	default n
-	depends on DEBUG_ERROR
-	---help---
-		Enable NX graphics subsystem error output to SYSLOG.
-
-config DEBUG_GRAPHICS_WARN
-	bool "Graphics Warnings Output"
-	default n
-	depends on DEBUG_WARN
-	---help---
-		Enable NX graphics subsystem warning output to SYSLOG.
-
-config DEBUG_GRAPHICS_INFO
-	bool "Graphics Informational Output"
-	default n
-	depends on DEBUG_INFO
-	---help---
-		Enable NX graphics subsystem informational output to SYSLOG.
-
-endif # DEBUG_GRAPHICS
 
 config DEBUG_LIB
 	bool "C Library Debug Features"
@@ -903,38 +840,6 @@ config DEBUG_SHM
 	depends on MM_SHM
 	---help---
 		Enable shared memory management debug SYSLOG output (disabled by default)
-
-config DEBUG_NET
-	bool "Network Debug Features"
-	default n
-	depends on ARCH_HAVE_NET
-	---help---
-		Enable network debug features.
-
-if DEBUG_NET
-
-config DEBUG_NET_ERROR
-	bool "Network Error Output"
-	default n
-	depends on DEBUG_ERROR
-	---help---
-		Enable network error output to SYSLOG.
-
-config DEBUG_NET_WARN
-	bool "Network Warnings Output"
-	default n
-	depends on DEBUG_WARN
-	---help---
-		Enable network warning output to SYSLOG.
-
-config DEBUG_NET_INFO
-	bool "Network Informational Output"
-	default n
-	depends on DEBUG_INFO
-	---help---
-		Enable network informational output to SYSLOG.
-
-endif # DEBUG_NET
 
 config DEBUG_POWER
 	bool "Power-related Debug Features"
@@ -1842,70 +1747,6 @@ config DEBUG_MOTOR_INFO
 
 endif # DEBUG_MOTOR
 
-config DEBUG_VIDEO
-	bool "Video Debug Features"
-	default n
-	depends on DRIVERS_VIDEO
-	---help---
-		Enable video debug features.
-
-if DEBUG_VIDEO
-
-config DEBUG_VIDEO_ERROR
-	bool "Video Error Output"
-	default n
-	depends on DEBUG_ERROR
-	---help---
-		Enable video error output to SYSLOG.
-
-config DEBUG_VIDEO_WARN
-	bool "Video Warnings Output"
-	default n
-	depends on DEBUG_WARN
-	---help---
-		Enable video warning output to SYSLOG.
-
-config DEBUG_VIDEO_INFO
-	bool "Video Informational Output"
-	default n
-	depends on DEBUG_INFO
-	---help---
-		Enable video informational output to SYSLOG.
-
-endif # DEBUG_VIDEO
-
-config DEBUG_VIRTIO
-	bool "Virtio Debug Features"
-	default n
-	depends on DRIVERS_VIRTIO
-	---help---
-		Enable virtio debug features.
-
-if DEBUG_VIRTIO
-
-config DEBUG_VIRTIO_ERROR
-	bool "Virtio Error Output"
-	default n
-	depends on DEBUG_ERROR
-	---help---
-		Enable virtio error output to SYSLOG.
-
-config DEBUG_VIRTIO_WARN
-	bool "Virtio Warnings Output"
-	default n
-	depends on DEBUG_WARN
-	---help---
-		Enable virtio warning output to SYSLOG.
-
-config DEBUG_VIRTIO_INFO
-	bool "Virtio Informational Output"
-	default n
-	depends on DEBUG_INFO
-	---help---
-		Enable virtio informational output to SYSLOG.
-
-endif # DEBUG_VIDEO
-
 endif # DEBUG_FEATURES
 
 config DEBUG_TCBINFO
@@ -2059,37 +1900,16 @@ menu "Device Drivers"
 source "drivers/Kconfig"
 endmenu
 
-menu "Networking Support"
-source "net/Kconfig"
-endmenu
-
-menu "Crypto API"
-source "crypto/Kconfig"
-endmenu
-
 menu "File Systems"
 source "fs/Kconfig"
 endmenu
 
 menu "Graphics Support"
-source "graphics/Kconfig"
 source "libs/libnx/Kconfig"
 endmenu
 
 menu "Memory Management"
 source "mm/Kconfig"
-endmenu
-
-menu "Audio Support"
-source "audio/Kconfig"
-endmenu
-
-menu "Video Support"
-source "video/Kconfig"
-endmenu
-
-menu "Wireless Support"
-source "wireless/Kconfig"
 endmenu
 
 menu "Binary Loader"
@@ -2100,10 +1920,6 @@ menu "Library Routines"
 source "libs/libc/Kconfig"
 source "libs/libxx/Kconfig"
 source "libs/libdsp/Kconfig"
-endmenu
-
-menu "Open Asymmetric Multi Processing"
-source "openamp/Kconfig"
 endmenu
 
 menu "Application Configuration"

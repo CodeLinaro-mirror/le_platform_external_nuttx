@@ -16,6 +16,10 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
  ****************************************************************************/
 
 /****************************************************************************
@@ -308,6 +312,14 @@ static int cap_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         }
         break;
 
+      /* CAPIOC_CH_CHANGE - Set the current channel  */
+      case CAPIOC_CH_CHANGE:
+        {
+          FAR uint32_t *ptr = (FAR uint32_t *)((uintptr_t)arg);
+          DEBUGASSERT(lower->ops->getfreq != NULL && ptr);
+          ret = lower->ops->chchannel(lower, ptr);
+        }
+        break;
       /* Any unrecognized IOCTL commands might be platform-specific ioctl
        * commands
        */

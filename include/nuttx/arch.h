@@ -1842,7 +1842,6 @@ int up_tls_size(void);
  ****************************************************************************/
 
 #ifdef CONFIG_SCHED_THREAD_LOCAL
-struct tls_info_s;
 void up_tls_initialize(FAR struct tls_info_s *info);
 #else
 #define up_tls_initialize(x)
@@ -2585,14 +2584,7 @@ int up_saveusercontext(FAR void *saveregs);
  * Name: up_fpucmp
  *
  * Description:
- *   Compare FPU areas from thread context.
- *
- * Input Parameters:
- *   saveregs1 - Pointer to the saved FPU registers.
- *   saveregs2 - Pointer to the saved FPU registers.
- *
- * Returned Value:
- *   True if FPU areas compare equal, False otherwise.
+ *   compare FPU areas from thread context
  *
  ****************************************************************************/
 

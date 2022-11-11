@@ -16,6 +16,10 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
  ****************************************************************************/
 
 /****************************************************************************
@@ -44,14 +48,7 @@
  * Name: up_fpucmp
  *
  * Description:
- *   Compare FPU areas from thread context.
- *
- * Input Parameters:
- *   saveregs1 - Pointer to the saved FPU registers.
- *   saveregs2 - Pointer to the saved FPU registers.
- *
- * Returned Value:
- *   True if FPU areas compare equal, False otherwise.
+ *   compare FPU areas from thread context
  *
  ****************************************************************************/
 

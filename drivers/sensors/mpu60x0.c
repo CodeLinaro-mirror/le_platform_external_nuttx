@@ -16,6 +16,10 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
  ****************************************************************************/
 
 /****************************************************************************
@@ -584,6 +588,24 @@ static inline int __mpu_write_user_ctrl(FAR struct mpu_dev_s *dev,
 }
 #endif
 
+static inline int __mpu_write_sample_div(FAR struct mpu_dev_s *dev,
+                                        uint8_t val)
+{
+  return __mpu_write_reg(dev, SMPLRT_DIV, &val, sizeof(val));
+}
+
+static inline int __mpu_write_int_en(FAR struct mpu_dev_s *dev,
+                                        uint8_t val)
+{
+  return __mpu_write_reg(dev, INT_ENABLE, &val, sizeof(val));
+}
+
+static inline int __mpu_write_fifo_en(FAR struct mpu_dev_s *dev,
+                                        uint8_t val)
+{
+  return __mpu_write_reg(dev, FIFO_EN, &val, sizeof(val));
+}
+
 /* __mpu_write_gyro_config() :
  *
  * Sets the @fs_sel bit in GYRO_CONFIG to the value provided. Per the
@@ -693,7 +715,7 @@ static int mpu_reset(FAR struct mpu_dev_s *dev)
 
   /* Disable SLEEP, use PLL with z-axis clock source */
 
-  __mpu_write_pwr_mgmt_1(dev, 3);
+  __mpu_write_pwr_mgmt_1(dev, 1);
   nxsig_usleep(2000);
 
   /* Disable i2c if we're on spi. */
@@ -728,7 +750,16 @@ static int mpu_reset(FAR struct mpu_dev_s *dev)
 
   __mpu_write_int_pin_cfg(dev, INT_PIN_CFG__INT_RD_CLEAR);
 
-  nxmutex_unlock(&dev->lock);
+  /* set configure for dev_id = 0x68 */
+  if (0x68 == __mpu_read_who_am_i(dev)){
+       syslog(LOG_NOTICE, " got right imu\n");
+       snerr("DEBUG: got right imu\n");
+       __mpu_write_fifo_en(dev, 0);
+       __mpu_write_int_en(dev, 0);
+       __mpu_write_user_ctrl(dev, 0);
+       __mpu_write_sample_div(dev, 19);
+  }
+  mpu_unlock(dev);
   return 0;
 }
 
