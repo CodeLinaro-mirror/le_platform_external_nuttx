@@ -16,8 +16,8 @@ choice
 	---help---
 		none
 
-config ARCH_BOARD_QCOMCARF4
-        bool "QCOMCARF4 car controller"
+config ARCH_BOARD_QTICARF4
+        bool "QTICARF4 car controller"
         depends on ARCH_CHIP_STM32F405RG
         select ARCH_HAVE_LEDS
         ---help---
@@ -83,7 +83,7 @@ endif #ARCH_BOARD_CUSTOM
 
 config ARCH_BOARD
 	string
-	default "qcomcarf4"                if ARCH_BOARD_QCOMCARF4
+	default "qticarf4"                if ARCH_BOARD_QTICARF4
 
 comment "Common Board Options"
 
@@ -128,8 +128,8 @@ config ARCH_IRQBUTTONS
 
 comment "Board-Specific Options"
 
-if ARCH_BOARD_QCOMCARF4
-source "boards/arm/stm32/qcomcarf4/Kconfig"
+if ARCH_BOARD_QTICARF4
+source "boards/arm/stm32/qticarf4/Kconfig"
 endif
 if ARCH_BOARD_CUSTOM
 source "boards/dummy/Kconfig"
