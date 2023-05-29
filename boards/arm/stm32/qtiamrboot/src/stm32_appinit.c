@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/arm/stm32/stm32f4discovery/src/stm32_appinit.c
+ * boards/arm/stm32/omnibusf4/src/stm32_appinit.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -16,6 +16,10 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
  ****************************************************************************/
 
 /****************************************************************************
@@ -24,14 +28,18 @@
 
 #include <nuttx/config.h>
 
-#include <sys/types.h>
 #include <nuttx/board.h>
 
-#include "stm32f4discovery.h"
+#include "qtibootf427.h"
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
+#ifndef OK
+#  define OK 0
+#endif
+
 
 /****************************************************************************
  * Public Functions
@@ -64,11 +72,13 @@
 
 int board_app_initialize(uintptr_t arg)
 {
-#ifdef CONFIG_BOARD_LATE_INITIALIZE
-  /* Board initialization already performed by board_late_initialize() */
+#ifdef CONFIG_BOARD_INITIALIZE
+
+  /* Board initialization already performed by board_initialize() */
 
   return OK;
 #else
+
   /* Perform board-specific initialization */
 
   return stm32_bringup();
