@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/arm/stm32/omnibusf4/src/stm32_spi.c
+ * boards/arm/stm32/stm32f4discovery/src/stm32_spi.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -15,6 +15,10 @@
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
  * License for the specific language governing permissions and limitations
  * under the License.
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  *
  ****************************************************************************/
 
@@ -36,10 +40,9 @@
 #include "chip.h"
 #include "stm32.h"
 
-#include "omnibusf4.h"
+#include "qtif427.h"
 
-#if defined(CONFIG_STM32_SPI1) || defined(CONFIG_STM32_SPI2) || \
-    defined(CONFIG_STM32_SPI3)
+#if defined(CONFIG_STM32_SPI1) || defined(CONFIG_STM32_SPI2) || defined(CONFIG_STM32_SPI3)
 
 /****************************************************************************
  * Public Functions
@@ -49,22 +52,15 @@
  * Name: stm32_spidev_initialize
  *
  * Description:
- *   Called to configure SPI chip select GPIO pins for the omnibusf4 board.
+ *   Called to configure SPI chip select GPIO pins for the stm32f4discovery
+ *   board.
  *
  ****************************************************************************/
 
 void weak_function stm32_spidev_initialize(void)
 {
-#ifdef CONFIG_STM32_SPI1
-  stm32_configgpio(GPIO_CS_MPU6000);
-  stm32_configgpio(GPIO_EXTI_MPU6000);
-#endif
 #ifdef CONFIG_STM32_SPI3
-  stm32_configgpio(GPIO_CS_MAX7456);
-#endif
-#if defined(CONFIG_MMCSD_SPI)
-  stm32_configgpio(GPIO_MMCSD_NCD);  /* SD_DET */
-  stm32_configgpio(GPIO_MMCSD_NSS);  /* CS */
+//  stm32_configgpio(GPIO_CS_ICM42688);
 #endif
 }
 
@@ -83,8 +79,8 @@ void weak_function stm32_spidev_initialize(void)
  *      pins.
  *   2. Provide stm32_spi1/2/3select() and stm32_spi1/2/3status() functions
  *      in your board-specific logic.  These functions will perform chip
- *      selection and
- *      status operations using GPIOs in the way your board is configured.
+ *      selection and status operations using GPIOs in the way your board
+ *      is configured.
  *   3. Add a calls to stm32_spibus_initialize() in your low level
  *      application initialization logic
  *   4. The handle returned by stm32_spibus_initialize() may then be used to
@@ -94,60 +90,27 @@ void weak_function stm32_spidev_initialize(void)
  *
  ****************************************************************************/
 
-#ifdef CONFIG_STM32_SPI1
-void stm32_spi1select(struct spi_dev_s *dev, uint32_t devid,
-                      bool selected)
-{
-  spiinfo("devid: %d CS: %s\n",
-          (int)devid, selected ? "assert" : "de-assert");
-
-  /* Note: CS is active-low. */
-
-  stm32_gpiowrite(GPIO_CS_MPU6000, !selected);
-}
-
-uint8_t stm32_spi1status(struct spi_dev_s *dev, uint32_t devid)
-{
-  return 0;
-}
-#endif
-
-#ifdef CONFIG_STM32_SPI2
-void stm32_spi2select(struct spi_dev_s *dev, uint32_t devid,
+#ifdef CONFIG_STM32_SPI3
+void stm32_spi3select(FAR struct spi_dev_s *dev, uint32_t devid,
                       bool selected)
 {
   spiinfo("devid: %d CS: %s\n",
           (int)devid, selected ? "assert" : "de-assert");
 
   /* Note: NSS is active-low. */
+  /* Note: CS is active-low. */
+  stm32_gpiowrite(GPIO_CS_ICM42688, !selected);
 
-  stm32_gpiowrite(GPIO_MMCSD_NSS, selected ? 0 : 1);
+printf("spi3 selected: %d, cs pin=%d \n ",selected,stm32_gpioread(GPIO_CS_ICM42688));
 }
 
-uint8_t stm32_spi2status(struct spi_dev_s *dev, uint32_t devid)
+uint8_t stm32_spi3status(FAR struct spi_dev_s *dev, uint32_t devid)
 {
   /* Note: SD_DET is pulled high when there's no SD card present. */
 
-  return stm32_gpioread(GPIO_MMCSD_NCD) ? 0 : 1;
+  return stm32_gpioread(GPIO_CS_ICM42688) ? 0 : 1;
 }
 #endif
 
-#ifdef CONFIG_STM32_SPI3
-void stm32_spi3select(struct spi_dev_s *dev, uint32_t devid,
-                      bool selected)
-{
-  spiinfo("devid: %d %s\n",
-          (int)devid, selected ? "assert" : "de-assert");
-
-  /* Note: MAX7456 CS is active-low. */
-
-  stm32_gpiowrite(GPIO_CS_MAX7456, selected ? 0 : 1);
-}
-
-uint8_t stm32_spi3status(struct spi_dev_s *dev, uint32_t devid)
-{
-  return 0;
-}
 #endif
 
-#endif /* CONFIG_STM32_SPI1 || CONFIG_STM32_SPI2 || CONFIG_STM32_SPI3 */

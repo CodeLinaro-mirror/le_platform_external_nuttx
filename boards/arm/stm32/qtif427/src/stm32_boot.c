@@ -16,6 +16,11 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  *
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
  ****************************************************************************/
 
 /****************************************************************************
@@ -34,7 +39,7 @@
 #include "itm.h"
 
 #include "stm32.h"
-#include "omnibusf4.h"
+#include "qtif427.h"
 
 /****************************************************************************
  * Public Functions
@@ -53,6 +58,10 @@
 
 void stm32_boardinitialize(void)
 {
+#ifdef CONFIG_SCHED_CRITMONITOR
+  up_perf_init((void *)STM32_SYSCLK_FREQUENCY);
+#endif
+
 #if defined(CONFIG_STM32_SPI1) || defined(CONFIG_STM32_SPI2) || defined(CONFIG_STM32_SPI3)
   /* Configure SPI chip selects if 1) SPI is not disabled, and 2) the weak
    * function stm32_spidev_initialize() has been brought into the link.

@@ -16,69 +16,29 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 #
+#
+# Changes from Qualcomm Innovation Center are provided under the following license:
+# Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause-Clear
+#
 ############################################################################
 
 include $(TOPDIR)/Make.defs
 
-CSRCS = stm32_boot.c stm32_bringup.c stm32_spi.c stm32_userleds.c
+CSRCS = stm32_boot.c stm32_bringup.c
 
-ifeq ($(CONFIG_SENSORS_MPU60X0),y)
-CSRCS += stm32_mpu6000.c
-endif
 
-ifeq ($(CONFIG_VIDEO_MAX7456),y)
-CSRCS += stm32_max7456.c
-endif
-
-ifeq ($(CONFIG_STM32_OTGFS),y)
-CSRCS += stm32_usb.c
-endif
-
-ifeq ($(CONFIG_NETDEVICES),y)
-CSRCS += stm32_netinit.c
-endif
-
-ifeq ($(CONFIG_PWM),y)
-CSRCS += stm32_pwm.c
-endif
+CSRCS += stm32_gpio.c stm32_can.c
 
 ifeq ($(CONFIG_BOARDCTL),y)
 CSRCS += stm32_appinit.c
-ifeq ($(CONFIG_BOARDCTL_RESET),y)
-CSRCS += stm32_reset.c
-endif
-ifeq ($(CONFIG_BOARDCTL_IOCTL),y)
-CSRCS += stm32_ioctl.c
-endif
 endif
 
-ifeq ($(CONFIG_ARCH_CUSTOM_PMINIT),y)
-CSRCS += stm32_pm.c
+ifeq ($(CONFIG_SENSORS_ICM42688),y)
+CSRCS += stm32_icm42688.c
+CSRCS += stm32_spi.c
 endif
 
-ifeq ($(CONFIG_ARCH_IDLE_CUSTOM),y)
-CSRCS += stm32_idle.c
-endif
-
-ifeq ($(CONFIG_TIMER),y)
-CSRCS += stm32_timer.c
-endif
-
-ifeq ($(CONFIG_STM32_ROMFS),y)
-CSRCS += stm32_romfs_initialize.c
-endif
-
-ifeq ($(CONFIG_BOARDCTL_UNIQUEID),y)
-CSRCS += stm32_uid.c
-endif
-
-ifeq ($(CONFIG_USBMSC),y)
-CSRCS += stm32_usbmsc.c
-endif
-
-ifeq ($(CONFIG_MMCSD),y)
-CSRCS += stm32_mmcsd.c
-endif
 
 DEPPATH += --dep-path board
 VPATH += :board

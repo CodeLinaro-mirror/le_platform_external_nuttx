@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/arm/stm32/omnibusf4/include/board.h
+ * boards/arm/stm32/stm32f4discovery/include/board.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -16,10 +16,14 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
  ****************************************************************************/
-
-#ifndef __BOARDS_ARM_STM32_OMNIBUSF4_INCLUDE_BOARD_H
-#define __BOARDS_ARM_STM32_OMNIBUSF4_INCLUDE_BOARD_H
+ 
+#ifndef __BOARDS_ARM_STM32_QTIF427_INCLUDE_BOARD_H
+#define __BOARDS_ARM_STM32_QTIF427_INCLUDE_BOARD_H
 
 /****************************************************************************
  * Included Files
@@ -69,7 +73,8 @@
  * LSE - 32.768 kHz
  */
 
-#define STM32_BOARD_XTAL        8000000ul
+/* MCB board is 25MHZ  */
+#define STM32_BOARD_XTAL        25000000ul
 
 #define STM32_HSI_FREQUENCY     16000000ul
 #define STM32_LSI_FREQUENCY     32000
@@ -89,7 +94,7 @@
  *         = 48,000,000
  */
 
-#define STM32_PLLCFG_PLLM       RCC_PLLCFG_PLLM(8)
+#define STM32_PLLCFG_PLLM       RCC_PLLCFG_PLLM(25)
 #define STM32_PLLCFG_PLLN       RCC_PLLCFG_PLLN(336)
 #define STM32_PLLCFG_PLLP       RCC_PLLCFG_PLLP_2
 #define STM32_PLLCFG_PLLQ       RCC_PLLCFG_PLLQ(7)
@@ -153,101 +158,34 @@
 #define GPIO_BEEPER1    (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_SPEED_50MHz |\
                          GPIO_OUTPUT_CLEAR | GPIO_PORTB|GPIO_PIN4)
 
-/* USART1: */
+/* USART1 - console on header pins */
 
-#if 0
-#define INVERTER_PIN_USART1     PC0            /* DYS F4 Pro, Omnibus F4 AIO 1st Gen only */
-#endif
-#define GPIO_USART1_RX  GPIO_USART1_RX_1       /* PA10 */
-#define GPIO_USART1_TX  GPIO_USART1_TX_1       /* PA9  */
+#define GPIO_USART1_RX GPIO_USART1_RX_1 /* AF7, PA10 */
+#define GPIO_USART1_TX GPIO_USART1_TX_1 /* AF7, PA9 */
 
-/* USART2:
- *
- * TODO: Do OMNIBUSF4 targets use USART2?
- */
 
-/* USART3: */
+/* USART2 - To control motor controller(ZLAC8015D) */
 
-#define GPIO_USART3_TX    GPIO_USART3_TX_1     /* PB10 */
-#define GPIO_USART3_RX    GPIO_USART3_RX_1     /* PB11 */
+#define GPIO_USART2_RX GPIO_USART2_RX_2 /* AF7, PD6 */
+#define GPIO_USART2_TX GPIO_USART2_TX_2 /* AF7, PD5 */
 
-/* USART4: */
 
-/* USART6: */
+#define GPIO_USART6_RX GPIO_USART6_RX_1  /* PC7 for 485*/
+#define GPIO_USART6_TX GPIO_USART6_TX_1 /* PC6 for 485 */ 
 
-#if 0
-#define INVERTER_PIN_UART6      PC8            /* Omnibus F4 V3 and later, EXUAVF4PRO */
-#endif
-#define GPIO_USART6_RX    GPIO_USART6_RX_1     /* PC7 */
-#define GPIO_USART6_TX    GPIO_USART6_TX_1     /* PC6 */
 
-/* PWM - motor outputs, etc. are on these pins: */
+/* CAN1 */
+#define GPIO_CAN1_RX GPIO_CAN1_RX_3
+#define GPIO_CAN1_TX GPIO_CAN1_TX_3
 
-#define GPIO_TIM3_CH3OUT  GPIO_TIM3_CH3OUT_1   /* S1_OUT  PB0 */
-#define GPIO_TIM3_CH4OUT  GPIO_TIM3_CH4OUT_1   /* S2_OUT  PB1 */
-#define GPIO_TIM2_CH4OUT  GPIO_TIM2_CH4OUT_1   /* S3_OUT  PA3 */
-#define GPIO_TIM2_CH3OUT  GPIO_TIM3_CH3OUT_1   /* S4_OUT  PA2 */
 
-/* SPI1 :
- *
- * MPU6000 6-axis motion sensor (accelerometer + gyroscope), or
- * MPU6500 6-Axis MEMS MotionTracking Device with DMP
- *
- * MPU6000 interrupts
- * #define USE_GYRO_EXTI
- * #define GYRO_1_EXTI_PIN         PC4
- * #define USE_MPU_DATA_READY_SIGNAL
- *
- * #define GYRO_1_ALIGN            CW270_DEG
- * #define ACC_1_ALIGN             CW270_DEG
- */
+/* SPI3 - Used for IMU icm42688  */
+#define GPIO_SPI3_MISO    GPIO_SPI3_MISO_1  /* PB4 */
+#define GPIO_SPI3_MOSI    GPIO_SPI3_MOSI_1  /* PB5 */
+#define GPIO_SPI3_NSS     GPIO_SPI3_NSS_1   /* PA15 */ /* Used as chip select pin */
+#define GPIO_SPI3_SCK     GPIO_SPI3_SCK_1   /* PB3 */
 
-#define GPIO_SPI1_MISO    GPIO_SPI1_MISO_1  /* PA6 */
-#define GPIO_SPI1_MOSI    GPIO_SPI1_MOSI_1  /* PA7 */
-#define GPIO_SPI1_SCK     GPIO_SPI1_SCK_1   /* PA5 */
-#if 0
-#define GPIO_SPI1_NSS     GPIO_SPI1_NSS_2   /* PA4 */
-#endif
-#define DMACHAN_SPI1_RX   DMAMAP_SPI1_RX_1  /* 2:0:3 */
-#define DMACHAN_SPI1_TX   DMAMAP_SPI1_TX_1  /* 2:3:3 */
+#define GPIO_CS_ICM42688  GPIO_SPI3_NSS
 
-/* SPI2 :
- *
- * Used for MMC/SD on OMNIBUSF4SD.
- */
 
-#define GPIO_SPI2_MISO    GPIO_SPI2_MISO_1  /* PB14 */
-#define GPIO_SPI2_MOSI    GPIO_SPI2_MOSI_1  /* PB15 */
-#define GPIO_SPI2_NSS     (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_SPEED_50MHz | \
-                           GPIO_OUTPUT_SET | GPIO_PORTB | GPIO_PIN12)
-#define GPIO_SPI2_SCK     GPIO_SPI2_SCK_2   /* PB13 */
-#define DMACHAN_SPI2_RX   DMAMAP_SPI2_RX    /* 1:3:0 */
-#define DMACHAN_SPI2_TX   DMAMAP_SPI2_TX    /* 1:4:0 */
-
-#define GPIO_MMCSD_NSS    GPIO_SPI2_NSS
-#define GPIO_MMCSD_NCD    (GPIO_INPUT | GPIO_FLOAT | GPIO_EXTI | \
-                           GPIO_PORTB | GPIO_PIN7) /* PB7 SD_DET */
-
-/* SPI3 :
- *
- * OMNIBUSF4SD targets use PA15 for NSS; others use PB4
- * (? BF code says "PB3").
- * define GPIO_SPI3_NSS     GPIO_SPI3_NSS_2   PB4
- *
- * Barometer and/or MAX7456, depending on the target.
- * (OMNIBUSF4BASE targets appear to have a cyrf6936 device.)
- */
-
-#define GPIO_SPI3_MISO    GPIO_SPI3_MISO_2  /* PC11 */
-#define GPIO_SPI3_MOSI    GPIO_SPI3_MOSI_2  /* PC12 */
-#define GPIO_SPI3_NSS     GPIO_SPI3_NSS_1   /* PA15 */ /* TODO: doesn't work like a chip select */
-#define GPIO_SPI3_SCK     GPIO_SPI3_SCK_2   /* PC10 */
-
-#if 0
-/* I2C : */
-
-#define GPIO_I2C1_SCL     GPIO_I2C1_SCL_1
-#define GPIO_I2C1_SDA     GPIO_I2C1_SDA_2
-#endif
-
-#endif /* __BOARDS_ARM_STM32_OMNIBUSF4_INCLUDE_BOARD_H */
+#endif /* __BOARDS_ARM_STM32_QTIF427_INCLUDE_BOARD_H */
