@@ -790,10 +790,10 @@ static void u16550_detach(FAR struct uart_dev_s *dev)
  *
  * Description:
  *   This is the UART interrupt handler.  It will be invoked when an
- *   interrupt received on the 'irq'  It should call uart_transmitchars or
- *   uart_receivechar to perform the appropriate data transfers.  The
- *   interrupt handling logic must be able to map the 'irq' number into the
- *   appropriate u16550_s structure in order to call these functions.
+ *   interrupt is received on the 'irq'.  It should call uart_xmitchars or
+ *   uart_recvchars to perform the appropriate data transfers.  The
+ *   interrupt handling logic must be able to map the 'arg' to the
+ *   appropriate uart_dev_s structure in order to call these functions.
  *
  ****************************************************************************/
 
@@ -1276,7 +1276,7 @@ static void u16550_putc(FAR struct u16550_s *priv, int ch)
  ****************************************************************************/
 
 /****************************************************************************
- * Name: up_earlyserialinit
+ * Name: u16550_earlyserialinit
  *
  * Description:
  *   Performs the low level UART initialization early in debug so that the
@@ -1288,7 +1288,7 @@ static void u16550_putc(FAR struct u16550_s *priv, int ch)
  *
  ****************************************************************************/
 
-void up_earlyserialinit(void)
+void u16550_earlyserialinit(void)
 {
   /* Configuration whichever one is the console */
 
@@ -1301,15 +1301,15 @@ void up_earlyserialinit(void)
 }
 
 /****************************************************************************
- * Name: up_serialinit
+ * Name: u16550_serialinit
  *
  * Description:
  *   Register serial console and serial ports.  This assumes that
- *   up_earlyserialinit was called previously.
+ *   u16550_earlyserialinit was called previously.
  *
  ****************************************************************************/
 
-void up_serialinit(void)
+void u16550_serialinit(void)
 {
 #ifdef CONSOLE_DEV
   uart_register("/dev/console", &CONSOLE_DEV);

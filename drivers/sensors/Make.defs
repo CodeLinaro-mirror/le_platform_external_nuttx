@@ -16,6 +16,11 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 #
+# Changes from Qualcomm Innovation Center are provided under the following license:
+# Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause-Clear
+#
+#
 ############################################################################
 
 # Include sensor drivers
@@ -342,6 +347,10 @@ endif
 
 ifeq ($(CONFIG_SENSORS_HDC1008),y)
   CSRCS += hdc1008.c
+endif
+
+ifeq ($(CONFIG_SENSORS_ICM42688),y)
+  CSRCS += icm42688.c
 endif
 
 # Include sensor driver build support

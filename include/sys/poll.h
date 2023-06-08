@@ -78,11 +78,6 @@
 #define POLLRDHUP    (0x10)  /* NuttX does not support shutdown(fd, SHUT_RD) */
 #define POLLNVAL     (0x20)
 
-#define POLLFD       (0x00)
-#define POLLFILE     (0x40)
-#define POLLSOCK     (0x80)
-#define POLLMASK     (0xC0)
-
 /****************************************************************************
  * Public Type Definitions
  ****************************************************************************/
@@ -122,7 +117,6 @@ struct pollfd
 
   /* Non-standard fields used internally by NuttX. */
 
-  FAR void    *ptr;     /* The psock or file being polled */
   FAR void    *arg;     /* The poll callback function argument */
   pollcb_t     cb;      /* The poll callback function */
   FAR void    *priv;    /* For use by drivers */

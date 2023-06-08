@@ -26,9 +26,11 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <sys/param.h>
 #include <unistd.h>
 #include <sched.h>
 #include <assert.h>
+#include <debug.h>
 #include <errno.h>
 
 #include <nuttx/irq.h>
@@ -41,14 +43,6 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-
-#ifndef MIN
-#  define MIN(a,b) (((a) < (b)) ? (a) : (b))
-#endif
-
-#ifndef MAX
-#  define MAX(a,b) (((a) > (b)) ? (a) : (b))
-#endif
 
 #ifndef CONFIG_SCHED_CRITMONITOR_MAXTIME_WDOG
 #  define CONFIG_SCHED_CRITMONITOR_MAXTIME_WDOG 0

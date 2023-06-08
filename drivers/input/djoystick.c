@@ -135,10 +135,9 @@ static const struct file_operations djoy_fops =
   NULL,       /* write */
   NULL,       /* seek */
   djoy_ioctl, /* ioctl */
+  NULL,       /* mmap */
+  NULL,       /* truncate */
   djoy_poll   /* poll */
-#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
-  , NULL      /* unlink */
-#endif
 };
 
 /****************************************************************************
@@ -554,7 +553,7 @@ static int djoy_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
             opriv->do_notify.dn_press   = notify->dn_press;
             opriv->do_notify.dn_release = notify->dn_release;
             opriv->do_notify.dn_event   = notify->dn_event;
-            opriv->do_pid               = getpid();
+            opriv->do_pid               = nxsched_getpid();
 
             /* Enable/disable interrupt handling */
 

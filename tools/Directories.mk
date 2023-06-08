@@ -37,7 +37,7 @@
 #   CONFIG_BUILD_KERNEL is selected, then applications are not build at all.
 
 CLEANDIRS :=
-CCLEANDIRS := boards $(APPDIR)
+CCLEANDIRS := boards $(APPDIR) graphics
 KERNDEPDIRS :=
 USERDEPDIRS :=
 
@@ -62,10 +62,18 @@ ifeq ($(EXTERNALDIR),external)
 endif
 
 CONTEXTDIRS = boards drivers fs $(APPDIR) $(ARCH_SRC)
+CLEANDIRS += pass1
 
 ifeq ($(CONFIG_BUILD_FLAT),y)
 
 KERNDEPDIRS += libs$(DELIM)libc mm
+
+ifeq ($(CONFIG_LIBM_TOOLCHAIN)$(CONFIG_LIBM_NONE),)
+KERNDEPDIRS += libs$(DELIM)libm
+else
+CLEANDIRS += libs$(DELIM)libm
+endif
+
 ifeq ($(CONFIG_HAVE_CXX),y)
 KERNDEPDIRS += libs$(DELIM)libxx
 else
@@ -75,6 +83,13 @@ endif
 else
 
 USERDEPDIRS += libs$(DELIM)libc mm
+
+ifeq ($(CONFIG_LIBM_TOOLCHAIN)$(CONFIG_LIBM_NONE),)
+USERDEPDIRS += libs$(DELIM)libm
+else
+CLEANDIRS += libs$(DELIM)libm
+endif
+
 ifeq ($(CONFIG_HAVE_CXX),y)
 USERDEPDIRS += libs$(DELIM)libxx
 else
@@ -96,8 +111,20 @@ endif
 endif
 
 CONTEXTDIRS += libs$(DELIM)libc
+
+ifeq ($(CONFIG_LIBM_TOOLCHAIN)$(CONFIG_LIBM_NONE),)
+CONTEXTDIRS += libs$(DELIM)libm
+endif
+
 ifeq ($(CONFIG_HAVE_CXX),y)
 CONTEXTDIRS += libs$(DELIM)libxx
+endif
+
+ifeq ($(CONFIG_NX),y)
+KERNDEPDIRS += graphics
+CONTEXTDIRS += graphics
+else
+CLEANDIRS += graphics
 endif
 
 ifeq ($(CONFIG_NXFONTS),y)
@@ -111,10 +138,53 @@ else
 CLEANDIRS += libs$(DELIM)libnx
 endif
 
+ifeq ($(CONFIG_AUDIO),y)
+KERNDEPDIRS += audio
+else
+CLEANDIRS += audio
+endif
+
+ifeq ($(CONFIG_VIDEO),y)
+KERNDEPDIRS += video
+else
+CLEANDIRS += video
+endif
+
+ifeq ($(CONFIG_WIRELESS),y)
+KERNDEPDIRS += wireless
+else
+CLEANDIRS += wireless
+endif
+
 ifeq ($(CONFIG_LIBDSP),y)
 KERNDEPDIRS += libs$(DELIM)libdsp
 else
 CLEANDIRS += libs$(DELIM)libdsp
+endif
+
+# Add networking directories to KERNDEPDIRS and CLEANDIRS
+
+ifeq ($(CONFIG_NET),y)
+KERNDEPDIRS += net
+else
+CLEANDIRS += net
+endif
+
+ifeq ($(CONFIG_CRYPTO),y)
+KERNDEPDIRS += crypto
+else
+CLEANDIRS += crypto
+endif
+
+ifeq ($(CONFIG_OPENAMP),y)
+KERNDEPDIRS += openamp
+CONTEXTDIRS += openamp
+else
+CLEANDIRS += openamp
+endif
+
+ifeq ($(CONFIG_MM_TLSF_MANAGER),y)
+CONTEXTDIRS += mm
 endif
 
 CLEANDIRS += $(KERNDEPDIRS) $(USERDEPDIRS)

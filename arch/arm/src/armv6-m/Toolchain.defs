@@ -23,6 +23,10 @@
 TOOLCHAIN_MTUNE  := -mcpu=cortex-m0 -mthumb
 TOOLCHAIN_MFLOAT := -mfloat-abi=soft
 
+LLVM_ARCHTYPE := thumbv6m
+LLVM_ABITYPE  := eabi
+LLVM_CPUTYPE  := cortex-m0
+
 # Clang Configuration files
 
 ifeq ($(CONFIG_ARM_TOOLCHAIN_CLANG),y)

@@ -25,6 +25,7 @@
 #include <nuttx/config.h>
 
 #include <semaphore.h>
+#include <sys/param.h>
 #include <sys/types.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -47,10 +48,6 @@
 
 #define DEVNAME_FMT    "/dev/spislv%d"
 #define DEVNAME_FMTLEN (11 + 3 + 1)
-
-#ifndef MIN
-#  define MIN(a, b) (((a) < (b)) ? (a) : (b))
-#endif
 
 #define WORDS2BYTES(_wn)   ((_wn) * (CONFIG_SPI_SLAVE_DRIVER_WIDTH / 8))
 #define BYTES2WORDS(_bn)   ((_bn) / (CONFIG_SPI_SLAVE_DRIVER_WIDTH / 8))
@@ -127,6 +124,8 @@ static const struct file_operations g_spislavefops =
   spi_slave_write,              /* write */
   NULL,                         /* seek */
   NULL,                         /* ioctl */
+  NULL,                         /* mmap */
+  NULL,                         /* truncate */
   NULL                          /* poll */
 #ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
   , spi_slave_unlink            /* unlink */
@@ -300,6 +299,7 @@ static ssize_t spi_slave_read(FAR struct file *filep, FAR char *buffer,
       return -ENOBUFS;
     }
 
+  priv->rx_length = MIN(buflen, sizeof(priv->rx_buffer));
   remaining_words = SPIS_CTRLR_QPOLL(priv->ctrlr);
   if (remaining_words == 0)
     {
@@ -543,7 +543,7 @@ static size_t spi_slave_receive(FAR struct spi_slave_dev_s *dev,
                                 FAR const void *data, size_t len)
 {
   FAR struct spi_slave_driver_s *priv = (FAR struct spi_slave_driver_s *)dev;
-  size_t recv_bytes = MIN(len, sizeof(priv->rx_buffer));
+  size_t recv_bytes = MIN(len, priv->rx_length);
 
   memcpy(priv->rx_buffer, data, recv_bytes);
 

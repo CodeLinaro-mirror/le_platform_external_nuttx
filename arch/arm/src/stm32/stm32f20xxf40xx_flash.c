@@ -15,6 +15,11 @@
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
  * License for the specific language governing permissions and limitations
  * under the License.
+ * 
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  *
  ****************************************************************************/
 
@@ -81,7 +86,6 @@ static void flash_unlock(void)
   if (getreg32(STM32_FLASH_CR) & FLASH_CR_LOCK)
     {
       /* Unlock sequence */
-
       putreg32(FLASH_KEY1, STM32_FLASH_KEYR);
       putreg32(FLASH_KEY2, STM32_FLASH_KEYR);
     }
@@ -329,10 +333,15 @@ ssize_t up_progmem_ispageerased(size_t page)
 
 ssize_t up_progmem_eraseblock(size_t block)
 {
+
   if (block >= STM32_FLASH_NPAGES)
     {
       return -EFAULT;
     }
+
+  /* just erase the first time, and erase the bank 2 */
+  if (block != 0)
+    return up_progmem_pagesize(block);
 
   nxmutex_lock(&g_lock);
 
@@ -340,8 +349,9 @@ ssize_t up_progmem_eraseblock(size_t block)
 
   flash_unlock();
 
+
   modifyreg32(STM32_FLASH_CR, 0, FLASH_CR_SER);
-  modifyreg32(STM32_FLASH_CR, FLASH_CR_SNB_MASK, FLASH_CR_SNB(block));
+  modifyreg32(STM32_FLASH_CR, 0, FLASH_CR_MER1);
   modifyreg32(STM32_FLASH_CR, 0, FLASH_CR_STRT);
 
   while (getreg32(STM32_FLASH_SR) & FLASH_SR_BSY)
@@ -364,12 +374,13 @@ ssize_t up_progmem_eraseblock(size_t block)
     }
 }
 
+
+/* modify program write as byte flash */
+
 ssize_t up_progmem_write(size_t addr, const void *buf, size_t count)
 {
-  uint16_t *hword = (uint16_t *)buf;
+  uint8_t *hword = (uint8_t *)buf;
   size_t written = count;
-
-  /* STM32 requires half-word access */
 
   if (count & 1)
     {
@@ -400,16 +411,15 @@ ssize_t up_progmem_write(size_t addr, const void *buf, size_t count)
 
   modifyreg32(STM32_FLASH_CR, 0, FLASH_CR_PG);
 
-  /* TODO: implement up_progmem_write() to support other sizes than 16-bits */
+  /* TODO: implement up_progmem_write() to support other sizes than 8-bits */
 
-  modifyreg32(STM32_FLASH_CR, FLASH_CR_PSIZE_MASK, FLASH_CR_PSIZE_X16);
+  modifyreg32(STM32_FLASH_CR, FLASH_CR_PSIZE_MASK, FLASH_CR_PSIZE_X8);
 
-  for (addr += STM32_FLASH_BASE; count; count -= 2, hword++, addr += 2)
+  for (addr += STM32_FLASH_BASE; count; count -= 1, hword++, addr += 1)
     {
-      /* Write half-word and wait to complete */
+      /* Write byte and wait to complete */
 
-      putreg16(*hword, addr);
-
+      putreg8(*hword, addr);
       while (getreg32(STM32_FLASH_SR) & FLASH_SR_BSY)
         {
           stm32_waste();
@@ -424,7 +434,7 @@ ssize_t up_progmem_write(size_t addr, const void *buf, size_t count)
           return -EROFS;
         }
 
-      if (getreg16(addr) != *hword)
+      if (getreg8(addr) != *hword)
         {
           modifyreg32(STM32_FLASH_CR, FLASH_CR_PG, 0);
           nxmutex_unlock(&g_lock);

@@ -92,10 +92,6 @@ static const struct block_operations g_bops =
   loop_read,     /* read */
   loop_write,    /* write */
   loop_geometry, /* geometry */
-  NULL           /* ioctl */
-#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
-  , NULL         /* unlink */
-#endif
 };
 
 /****************************************************************************
@@ -292,6 +288,9 @@ static int loop_geometry(FAR struct inode *inode,
   if (geometry)
     {
       dev = (FAR struct loop_struct_s *)inode->i_private;
+
+      memset(geometry, 0, sizeof(*geometry));
+
       geometry->geo_available     = true;
       geometry->geo_mediachanged  = false;
       geometry->geo_writeenabled  = dev->writeenabled;

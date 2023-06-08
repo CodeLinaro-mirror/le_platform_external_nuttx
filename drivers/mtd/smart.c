@@ -482,10 +482,6 @@ static const struct file_operations g_fops =
   smart_loop_write, /* write */
   NULL,             /* seek */
   smart_loop_ioctl, /* ioctl */
-  NULL              /* poll */
-#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
-  , NULL            /* unlink */
-#endif
 };
 #endif /* CONFIG_SMART_DEV_LOOP */
 
@@ -1069,6 +1065,9 @@ static int smart_geometry(FAR struct inode *inode, struct geometry *geometry)
       geometry->geo_nsectors      = dev->geo.neraseblocks * erasesize /
                                     dev->sectorsize;
       geometry->geo_sectorsize    = dev->sectorsize;
+
+      strlcpy(geometry->geo_model, dev->geo.model,
+              sizeof(geometry->geo_model));
 
       finfo("available: true mediachanged: false writeenabled: %s\n",
             geometry->geo_writeenabled ? "true" : "false");
@@ -6293,10 +6292,6 @@ int smart_initialize(int minor, FAR struct mtd_dev_s *mtd,
         }
     }
 
-#ifdef CONFIG_SMART_DEV_LOOP
-  register_driver("/dev/smart", &g_fops, 0666, NULL);
-#endif
-
   return OK;
 
 errout:
@@ -6323,6 +6318,20 @@ errout:
   kmm_free(dev);
   return ret;
 }
+
+/****************************************************************************
+ * Name: smart_loop_register_driver
+ *
+ * Description:
+ *   Registers SmartFS Loop Driver
+ ****************************************************************************/
+
+#ifdef CONFIG_SMART_DEV_LOOP
+int smart_loop_register_driver(void)
+{
+  return register_driver("/dev/smart", &g_fops, 0666, NULL);
+}
+#endif
 
 /****************************************************************************
  * Name: smart_losetup

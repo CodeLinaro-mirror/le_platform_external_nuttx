@@ -16,10 +16,6 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  *
- * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
- *
  ****************************************************************************/
 
 #ifndef __INCLUDE_NUTTX_TIMERS_CAPTURE_H
@@ -40,7 +36,6 @@
 
 #define CAPIOC_DUTYCYCLE _CAPIOC(1)
 #define CAPIOC_FREQUENCE _CAPIOC(2)
-#define CAPIOC_CH_CHANGE _CAPIOC(3)
 
 /****************************************************************************
  * Public Types
@@ -72,10 +67,6 @@ struct cap_ops_s
 
   CODE int (*getfreq)(FAR struct cap_lowerhalf_s *lower,
                       FAR uint32_t *freq);
- /* Change capture channel  */
-
-  CODE int (*chchannel)(FAR struct cap_lowerhalf_s *lower,
-                      FAR uint32_t *channel);
 };
 
 /* This structure provides the publicly visible representation of the

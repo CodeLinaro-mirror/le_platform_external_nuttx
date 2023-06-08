@@ -111,6 +111,7 @@
 #define AUDIOIOC_UNREGISTERMQ       _AUDIOIOC(15)
 #define AUDIOIOC_HWRESET            _AUDIOIOC(16)
 #define AUDIOIOC_SETBUFFERINFO      _AUDIOIOC(17)
+#define AUDIOIOC_SETPARAMTER        _AUDIOIOC(18)
 
 /* Audio Device Types *******************************************************/
 
@@ -239,9 +240,7 @@
  */
 
 #define AUDIO_VOLUME_MAX            1000
-#define AUDIO_VOLUME_MAX_FLOAT      1000.0f
 #define AUDIO_VOLUME_MIN            0
-#define AUDIO_VOLUME_MIN_FLOAT      0.0f
 
 /* Audio Balance Limits *****************************************************/
 
@@ -251,11 +250,8 @@
  */
 
 #define AUDIO_BALANCE_RIGHT          1000
-#define AUDIO_BALANCE_RIGHT_FLOAT    1000.0f
 #define AUDIO_BALANCE_CENTER         500
-#define AUDIO_BALANCE_CENTER_FLOAT   500.0f
 #define AUDIO_BALANCE_LEFT           0
-#define AUDIO_BALANCE_LEFT_FLOAT     0.0f
 
 /* Supported Feature Units controls *****************************************/
 

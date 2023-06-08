@@ -68,6 +68,8 @@
 #endif
 
 #define stream_putc(c,stream)  (total_len++, lib_stream_putc(stream, c))
+#define stream_puts(buf, len, stream) \
+        (total_len += len, lib_stream_puts(stream, buf, len))
 
 /* Order is relevant here and matches order in format string */
 
@@ -146,7 +148,7 @@ static const char g_nullstring[] = "(null)";
 static int vsprintf_internal(FAR struct lib_outstream_s *stream,
                              FAR struct arg_s *arglist, int numargs,
                              FAR const IPTR char *fmt, va_list ap)
-           printflike(4, 0);
+           printf_like(4, 0);
 
 /****************************************************************************
  * Private Functions
@@ -947,16 +949,9 @@ str_lpad:
                 }
             }
 
-          while (size)
-            {
-              stream_putc(*pnt++, stream);
-              if (width != 0)
-                {
-                  width -= 1;
-                }
-
-              size -= 1;
-            }
+          stream_puts(pnt, size, stream);
+          width = width >= size ? width - size : 0;
+          size = 0;
 
           goto tail;
         }
@@ -1145,10 +1140,10 @@ str_lpad:
                       continue;
                     }
 
-#ifdef CONFIG_ALLSYMS
                   case 'S':
                   case 's':
                     {
+#ifdef CONFIG_ALLSYMS
                       FAR const struct symtab_s *symbol;
                       FAR void *addr = (FAR void *)(uintptr_t)x;
                       size_t symbolsize;
@@ -1171,10 +1166,9 @@ str_lpad:
 
                           continue;
                         }
-
+#endif
                       break;
                     }
-#endif
 
                   default:
                     fmt_ungetc(fmt);

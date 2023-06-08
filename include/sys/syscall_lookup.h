@@ -25,7 +25,7 @@
  */
 
 SYSCALL_LOOKUP1(_exit,                     1)
-SYSCALL_LOOKUP(_assert,                    2)
+SYSCALL_LOOKUP(_assert,                    3)
 SYSCALL_LOOKUP(getpid,                     0)
 SYSCALL_LOOKUP(gettid,                     0)
 SYSCALL_LOOKUP(prctl,                      2)
@@ -153,6 +153,7 @@ SYSCALL_LOOKUP(task_setcancelstate,        2)
  */
 
 SYSCALL_LOOKUP(kill,                       2)
+SYSCALL_LOOKUP(tgkill,                     3)
 SYSCALL_LOOKUP(sigaction,                  3)
 SYSCALL_LOOKUP(sigpending,                 1)
 SYSCALL_LOOKUP(sigprocmask,                3)
@@ -218,6 +219,9 @@ SYSCALL_LOOKUP(pwrite,                     4)
   SYSCALL_LOOKUP(timerfd_settime,          4)
   SYSCALL_LOOKUP(timerfd_gettime,          2)
 #endif
+#ifdef CONFIG_SIGNAL_FD
+  SYSCALL_LOOKUP(signalfd,                 3)
+#endif
 
 /* Board support */
 
@@ -230,15 +234,19 @@ SYSCALL_LOOKUP(pwrite,                     4)
 SYSCALL_LOOKUP(dup,                        1)
 SYSCALL_LOOKUP(dup2,                       2)
 SYSCALL_LOOKUP(fcntl,                      3)
+SYSCALL_LOOKUP(ftruncate,                  2)
 SYSCALL_LOOKUP(lseek,                      3)
 SYSCALL_LOOKUP(mmap,                       6)
 SYSCALL_LOOKUP(open,                       3)
+SYSCALL_LOOKUP(rename,                     2)
 SYSCALL_LOOKUP(stat,                       2)
 SYSCALL_LOOKUP(lstat,                      2)
 SYSCALL_LOOKUP(fstat,                      2)
 SYSCALL_LOOKUP(statfs,                     2)
 SYSCALL_LOOKUP(fstatfs,                    2)
 SYSCALL_LOOKUP(sendfile,                   4)
+SYSCALL_LOOKUP(sync,                       0)
+SYSCALL_LOOKUP(fsync,                      1)
 SYSCALL_LOOKUP(chmod,                      2)
 SYSCALL_LOOKUP(lchmod,                     2)
 SYSCALL_LOOKUP(fchmod,                     2)
@@ -248,12 +256,10 @@ SYSCALL_LOOKUP(fchown,                     3)
 SYSCALL_LOOKUP(utimens,                    2)
 SYSCALL_LOOKUP(lutimens,                   2)
 SYSCALL_LOOKUP(futimens,                   2)
-
-#if defined(CONFIG_FS_RAMMAP)
-  SYSCALL_LOOKUP(munmap,                   2)
-#endif
+SYSCALL_LOOKUP(munmap,                     2)
 
 #if defined(CONFIG_PSEUDOFS_SOFTLINKS)
+  SYSCALL_LOOKUP(link,                     2)
   SYSCALL_LOOKUP(symlink,                  2)
   SYSCALL_LOOKUP(readlink,                 3)
 #endif
@@ -268,15 +274,11 @@ SYSCALL_LOOKUP(futimens,                   2)
 
 #ifdef CONFIG_FILE_STREAM
   SYSCALL_LOOKUP(fs_fdopen,                4)
-  SYSCALL_LOOKUP(nxsched_get_streams,      0)
 #endif
 
 #ifndef CONFIG_DISABLE_MOUNTPOINT
   SYSCALL_LOOKUP(mount,                    5)
-  SYSCALL_LOOKUP(fsync,                    1)
-  SYSCALL_LOOKUP(ftruncate,                2)
   SYSCALL_LOOKUP(mkdir,                    2)
-  SYSCALL_LOOKUP(rename,                   2)
   SYSCALL_LOOKUP(rmdir,                    1)
   SYSCALL_LOOKUP(umount2,                  2)
   SYSCALL_LOOKUP(unlink,                   1)
@@ -289,6 +291,11 @@ SYSCALL_LOOKUP(futimens,                   2)
   SYSCALL_LOOKUP(shmat,                    3)
   SYSCALL_LOOKUP(shmctl,                   3)
   SYSCALL_LOOKUP(shmdt,                    1)
+#endif
+
+#ifdef CONFIG_FS_SHMFS
+  SYSCALL_LOOKUP(shm_open,                 3)
+  SYSCALL_LOOKUP(shm_unlink,               1)
 #endif
 
 /* The following are defined if pthreads are enabled */
@@ -318,7 +325,6 @@ SYSCALL_LOOKUP(futimens,                   2)
   SYSCALL_LOOKUP(pthread_getaffinity_np,   3)
 #endif
   SYSCALL_LOOKUP(pthread_cond_clockwait,   4)
-  SYSCALL_LOOKUP(pthread_kill,             2)
   SYSCALL_LOOKUP(pthread_sigmask,          3)
 #endif
 
@@ -351,7 +357,7 @@ SYSCALL_LOOKUP(futimens,                   2)
 /* The following are defined only if networking AND sockets are supported */
 
 #ifdef CONFIG_NET
-  SYSCALL_LOOKUP(accept,                   3)
+  SYSCALL_LOOKUP(accept4,                  4)
   SYSCALL_LOOKUP(bind,                     3)
   SYSCALL_LOOKUP(connect,                  3)
   SYSCALL_LOOKUP(getpeername,              3)
@@ -365,6 +371,7 @@ SYSCALL_LOOKUP(futimens,                   2)
   SYSCALL_LOOKUP(sendto,                   6)
   SYSCALL_LOOKUP(sendmsg,                  3)
   SYSCALL_LOOKUP(setsockopt,               5)
+  SYSCALL_LOOKUP(shutdown,                 2)
   SYSCALL_LOOKUP(socket,                   3)
   SYSCALL_LOOKUP(socketpair,               4)
 #endif
@@ -376,3 +383,29 @@ SYSCALL_LOOKUP(futimens,                   2)
 #ifdef CONFIG_CRYPTO_RANDOM_POOL
   SYSCALL_LOOKUP(arc4random_buf,           2)
 #endif
+
+SYSCALL_LOOKUP(getrandom,                  3)
+SYSCALL_LOOKUP(nanosleep,                  2)
+
+/* I/O event notification facility */
+
+SYSCALL_LOOKUP(epoll_create1,              1)
+SYSCALL_LOOKUP(epoll_ctl,                  4)
+SYSCALL_LOOKUP(epoll_wait,                 4)
+
+/* Identity of Group/User */
+
+SYSCALL_LOOKUP(getegid,                    1)
+SYSCALL_LOOKUP(geteuid,                    1)
+SYSCALL_LOOKUP(setegid,                    1)
+SYSCALL_LOOKUP(seteuid,                    1)
+
+/* POSIX timers */
+
+SYSCALL_LOOKUP(time,                       1)
+SYSCALL_LOOKUP(gettimeofday,               2)
+SYSCALL_LOOKUP(settimeofday,               2)
+
+/* ANSI C signal handling */
+
+SYSCALL_LOOKUP(signal,                     2)

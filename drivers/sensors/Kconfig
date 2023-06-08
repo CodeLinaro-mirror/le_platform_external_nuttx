@@ -698,6 +698,33 @@ config SENSORS_ADXL372
 	---help---
 		Enable driver support for the Analog Devices ADXL372 Sensor.
 
+config SENSORS_ICM42688
+        bool "Invensense ICM42688 Sensor support"
+        default n
+        ---help---
+                Enable driver support for Invensense ICM42688 IMU device.
+
+if SENSORS_ICM42688
+
+choice
+        prompt "ICM42688 Interface"
+        default ICM42688_SPI
+
+config ICM42688_SPI
+        bool "ICM42688 SPI Interface"
+        select SPI
+        ---help---
+                Enables support for the SPI interface.
+
+config ICM42688_I2C
+        bool "ICM42688 I2C Interface"
+        select I2C
+        ---help---
+                Enables support for the I2C interface.
+endchoice
+
+endif
+
 config SENSORS_MPU60X0
 	bool "Invensense MPU60x0 Sensor support"
 	default n

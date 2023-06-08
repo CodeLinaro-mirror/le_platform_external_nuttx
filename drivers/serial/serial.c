@@ -24,6 +24,7 @@
 
 #include <nuttx/config.h>
 
+#include <ctype.h>
 #include <sys/types.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -34,8 +35,10 @@
 #include <assert.h>
 #include <errno.h>
 #include <debug.h>
+#include <spawn.h>
 
 #include <nuttx/irq.h>
+#include <nuttx/ascii.h>
 #include <nuttx/arch.h>
 #include <nuttx/clock.h>
 #include <nuttx/sched.h>
@@ -90,6 +93,10 @@ static inline ssize_t uart_irqwrite(FAR uart_dev_t *dev,
 static int     uart_tcdrain(FAR uart_dev_t *dev,
                             bool cancelable, clock_t timeout);
 
+static int     uart_tcsendbreak(FAR uart_dev_t *dev,
+                                FAR struct file *filep,
+                                unsigned int ms);
+
 /* Character driver methods */
 
 static int     uart_open(FAR struct file *filep);
@@ -126,10 +133,9 @@ static const struct file_operations g_serialops =
   uart_write, /* write */
   NULL,       /* seek */
   uart_ioctl, /* ioctl */
+  NULL,       /* mmap */
+  NULL,       /* truncate */
   uart_poll   /* poll */
-#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
-  , NULL      /* unlink */
-#endif
 };
 
 #ifdef CONFIG_TTY_LAUNCH
@@ -309,7 +315,6 @@ static inline ssize_t uart_irqwrite(FAR uart_dev_t *dev,
     {
       int ch = *buffer++;
 
-#ifdef CONFIG_SERIAL_TERMIOS
       /* Do output post-processing */
 
       if ((dev->tc_oflag & OPOST) != 0)
@@ -328,15 +333,6 @@ static inline ssize_t uart_irqwrite(FAR uart_dev_t *dev,
               uart_putc(dev, '\r');
             }
         }
-
-#else /* !CONFIG_SERIAL_TERMIOS */
-      /* If this is the console, then we should replace LF with CR-LF */
-
-      if (dev->isconsole && ch == '\n')
-        {
-          uart_putc(dev, '\r');
-        }
-#endif
 
       /* Output the character, using the low-level direct UART interfaces */
 
@@ -487,6 +483,87 @@ static int uart_tcdrain(FAR uart_dev_t *dev,
 }
 
 /****************************************************************************
+ * Name: uart_tcsendbreak
+ *
+ * Description:
+ *   Request a serial line Break by calling the lower half driver's
+ *   BSD-compatible Break IOCTLs TIOCSBRK and TIOCCBRK, with a sleep of the
+ *   specified duration between them.
+ *
+ * Input Parameters:
+ *   dev      - Serial device.
+ *   filep    - Required for issuing lower half driver IOCTL call.
+ *   ms       - If non-zero, duration of the Break in milliseconds; if
+ *              zero, duration is 400 milliseconds.
+ *
+ * Returned Value:
+ *   0 on success or a negated errno value on failure.
+ *
+ ****************************************************************************/
+
+static int uart_tcsendbreak(FAR uart_dev_t *dev, FAR struct file *filep,
+                            unsigned int ms)
+{
+  int ret;
+
+  /* tcsendbreak is a cancellation point */
+
+  if (enter_cancellation_point())
+    {
+#ifdef CONFIG_CANCELLATION_POINTS
+      /* If there is a pending cancellation, then do not perform
+       * the wait.  Exit now with ECANCELED.
+       */
+
+      leave_cancellation_point();
+      return -ECANCELED;
+#endif
+    }
+
+  /* REVISIT: Do we need to perform the equivalent of tcdrain() before
+   * beginning the Break to avoid corrupting the transmit data? If so, note
+   * that just calling uart_tcdrain() here would create a race condition,
+   * since new transmit data could be written after uart_tcdrain() returns
+   * but before we re-acquire the dev->xmit.lock here. Therefore, we would
+   * need to refactor the functional portion of uart_tcdrain() to a separate
+   * function and call it from both uart_tcdrain() and uart_tcsendbreak()
+   * in critical section and with xmit lock already held.
+   */
+
+  if (dev->ops->ioctl)
+    {
+      ret = nxmutex_lock(&dev->xmit.lock);
+      if (ret >= 0)
+        {
+          /* Request lower half driver to start the Break */
+
+          ret = dev->ops->ioctl(filep, TIOCSBRK, 0);
+          if (ret >= 0)
+            {
+              /* Wait 400 ms or the requested Break duration */
+
+              nxsig_usleep((ms == 0) ? 400000 : ms * 1000);
+
+              /* Request lower half driver to end the Break */
+
+              ret = dev->ops->ioctl(filep, TIOCCBRK, 0);
+            }
+        }
+
+      nxmutex_unlock(&dev->xmit.lock);
+    }
+  else
+    {
+      /* With no lower half IOCTL, we cannot request Break at all. */
+
+      ret = -ENOTTY;
+    }
+
+  leave_cancellation_point();
+  return ret;
+}
+
+/****************************************************************************
  * Name: uart_open
  *
  * Description:
@@ -570,7 +647,11 @@ static int uart_open(FAR struct file *filep)
       ret = uart_attach(dev);
       if (ret < 0)
         {
-          uart_shutdown(dev);
+          if (!dev->isconsole)
+            {
+              uart_shutdown(dev);
+            }
+
           leave_critical_section(flags);
           goto errout_with_lock;
         }
@@ -685,6 +766,7 @@ static ssize_t uart_read(FAR struct file *filep,
 #endif
   irqstate_t flags;
   ssize_t recvd = 0;
+  bool echoed = false;
   int16_t tail;
   char ch;
   int ret;
@@ -755,7 +837,6 @@ static ssize_t uart_read(FAR struct file *filep,
 
           rxbuf->tail = tail;
 
-#ifdef CONFIG_SERIAL_TERMIOS
           /* Do input processing if any is enabled */
 
           if (dev->tc_iflag & (INLCR | IGNCR | ICRNL))
@@ -787,12 +868,56 @@ static ssize_t uart_read(FAR struct file *filep,
            * IUCLC - Not Posix
            * IXON/OXOFF - no xon/xoff flow control.
            */
-#endif
 
           /* Store the received character */
 
           *buffer++ = ch;
           recvd++;
+
+          if (dev->tc_lflag & ECHO)
+            {
+              /* Check for the beginning of a VT100 escape sequence, 3 byte */
+
+              if (ch == ASCII_ESC)
+                {
+                  /* Mark that we should skip 2 more bytes */
+
+                  dev->escape = 2;
+                  continue;
+                }
+              else if (dev->escape == 2 && ch != ASCII_LBRACKET)
+                {
+                  /* It's not an <esc>[x 3 byte sequence, show it */
+
+                  dev->escape = 0;
+                }
+
+              /* Echo if the character is not a control byte */
+
+              if ((!iscntrl(ch & 0xff) || (ch == '\n')) && dev->escape == 0)
+                {
+                  if (ch == '\n')
+                    {
+                      uart_putxmitchar(dev, '\r', true);
+                    }
+
+                  uart_putxmitchar(dev, ch, true);
+
+                  /* Mark the tx buffer have echoed content here,
+                   * to avoid the tx buffer is empty such as special escape
+                   * sequence received, but enable the tx interrupt.
+                   */
+
+                  echoed = true;
+                }
+
+              /* Skipping character count down */
+
+              if (dev->escape > 0)
+                {
+                  dev->escape--;
+                }
+            }
         }
 
 #ifdef CONFIG_DEV_SERIAL_FULLBLOCKS
@@ -976,6 +1101,14 @@ static ssize_t uart_read(FAR struct file *filep,
         }
     }
 
+  if (echoed)
+    {
+#ifdef CONFIG_SERIAL_TXDMA
+      uart_dmatxavail(dev);
+#endif
+      uart_enabletxint(dev);
+    }
+
 #ifdef CONFIG_SERIAL_RXDMA
   /* Notify DMA that there is free space in the RX buffer */
 
@@ -1115,7 +1248,6 @@ static ssize_t uart_write(FAR struct file *filep, FAR const char *buffer,
       ch  = *buffer++;
       ret = OK;
 
-#ifdef CONFIG_SERIAL_TERMIOS
       /* Do output post-processing */
 
       if ((dev->tc_oflag & OPOST) != 0)
@@ -1142,15 +1274,6 @@ static ssize_t uart_write(FAR struct file *filep, FAR const char *buffer,
            * ONOCR  - low-speed interactive optimization
            */
         }
-
-#else /* !CONFIG_SERIAL_TERMIOS */
-      /* If this is the console, convert \n -> \r\n */
-
-      if (dev->isconsole && ch == '\n')
-        {
-          ret = uart_putxmitchar(dev, '\r', oktoblock);
-        }
-#endif
 
       /* Put the character into the transmit buffer */
 
@@ -1349,6 +1472,22 @@ static int uart_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
             }
             break;
 
+          case TCSBRK:
+            {
+              /* Non-standard Break specifies duration in milliseconds */
+
+              ret = uart_tcsendbreak(dev, filep, arg);
+            }
+            break;
+
+          case TCSBRKP:
+            {
+              /* POSIX Break specifies duration in units of 100ms */
+
+              ret = uart_tcsendbreak(dev, filep, arg * 100);
+            }
+            break;
+
 #if defined(CONFIG_TTY_SIGINT) || defined(CONFIG_TTY_SIGTSTP)
           /* Make the controlling terminal of the calling process */
 
@@ -1378,7 +1517,6 @@ static int uart_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         }
     }
 
-#ifdef CONFIG_SERIAL_TERMIOS
   /* Append any higher level TTY flags */
 
   if (ret == OK || ret == -ENOTTY)
@@ -1387,7 +1525,8 @@ static int uart_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         {
           case TCGETS:
             {
-              FAR struct termios *termiosp = (FAR struct termios *)arg;
+              FAR struct termios *termiosp = (FAR struct termios *)
+                                                (uintptr_t)arg;
 
               if (!termiosp)
                 {
@@ -1407,7 +1546,8 @@ static int uart_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
           case TCSETS:
             {
-              FAR struct termios *termiosp = (FAR struct termios *)arg;
+              FAR struct termios *termiosp = (FAR struct termios *)
+                                                (uintptr_t)arg;
 
               if (!termiosp)
                 {
@@ -1420,13 +1560,11 @@ static int uart_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
               dev->tc_iflag = termiosp->c_iflag;
               dev->tc_oflag = termiosp->c_oflag;
               dev->tc_lflag = termiosp->c_lflag;
-
               ret = 0;
             }
             break;
         }
     }
-#endif
 
   return ret;
 }
@@ -1601,21 +1739,20 @@ static void uart_launch_worker(void *arg)
   nxsched_foreach(uart_launch_foreach, &found);
   if (!found)
     {
-#ifdef CONFIG_TTY_LAUNCH_ENTRY
-      nxtask_create(CONFIG_TTY_LAUNCH_ENTRYNAME,
-                    CONFIG_TTY_LAUNCH_PRIORITY,
-                    NULL, CONFIG_TTY_LAUNCH_STACKSIZE,
-                    CONFIG_TTY_LAUNCH_ENTRYPOINT,
-                    argv, NULL);
-#else
       posix_spawnattr_t attr;
 
       posix_spawnattr_init(&attr);
-
       attr.priority  = CONFIG_TTY_LAUNCH_PRIORITY;
       attr.stacksize = CONFIG_TTY_LAUNCH_STACKSIZE;
-      exec_spawn(CONFIG_TTY_LAUNCH_FILEPATH, argv, NULL, 0, &attr);
+
+#ifdef CONFIG_TTY_LAUNCH_ENTRY
+      task_spawn(CONFIG_TTY_LAUNCH_ENTRYNAME,
+                 CONFIG_TTY_LAUNCH_ENTRYPOINT,
+                 NULL, &attr, argv, NULL);
+#else
+      exec_spawn(CONFIG_TTY_LAUNCH_FILEPATH, argv, NULL, NULL, 0, &attr);
 #endif
+      posix_spawnattr_destroy(&attr);
     }
 }
 
@@ -1645,20 +1782,26 @@ int uart_register(FAR const char *path, FAR uart_dev_t *dev)
   dev->pid = INVALID_PROCESS_ID;
 #endif
 
-#ifdef CONFIG_SERIAL_TERMIOS
   /* If this UART is a serial console */
 
   if (dev->isconsole)
     {
-      /* Enable signals by default */
+      /* Enable signals and echo by default */
 
-      dev->tc_lflag |= ISIG;
+      dev->tc_lflag |= ISIG | ECHO;
 
       /* Enable \n -> \r\n translation for the console */
 
       dev->tc_oflag = OPOST | ONLCR;
+
+      /* Convert CR to LF by default for console */
+
+      dev->tc_iflag |= ICRNL;
+
+      /* Clear escape counter */
+
+      dev->escape = 0;
     }
-#endif
 
   /* Initialize mutex & semaphores */
 
@@ -1851,11 +1994,7 @@ int uart_check_special(FAR uart_dev_t *dev, const char *buf, size_t size)
 {
   size_t i;
 
-#ifdef CONFIG_SERIAL_TERMIOS
   if ((dev->tc_lflag & ISIG) == 0)
-#else
-  if (!dev->isconsole)
-#endif
     {
       return 0;
     }

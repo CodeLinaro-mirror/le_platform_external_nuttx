@@ -129,6 +129,8 @@ static const struct file_operations rtc_fops =
   rtc_write,     /* write */
   NULL,          /* seek */
   rtc_ioctl,     /* ioctl */
+  NULL,          /* mmap */
+  NULL,          /* truncate */
   NULL           /* poll */
 #ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
   , rtc_unlink   /* unlink */
@@ -468,7 +470,7 @@ static int rtc_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
             pid = alarminfo->pid;
             if (pid == 0)
               {
-                pid = getpid();
+                pid = nxsched_getpid();
               }
 
             /* Save the signal info to be used to notify the caller when the
@@ -539,7 +541,7 @@ static int rtc_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
             pid = alarminfo->pid;
             if (pid == 0)
               {
-                pid = getpid();
+                pid = nxsched_getpid();
               }
 
             /* Save the signal info to be used to notify the caller when the
@@ -673,7 +675,7 @@ static int rtc_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
             pid = alarminfo->pid;
             if (pid == 0)
               {
-                pid = getpid();
+                pid = nxsched_getpid();
               }
 
             /* Save the signal info to be used to notify the caller when the
