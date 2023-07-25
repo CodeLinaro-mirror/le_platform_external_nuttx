@@ -52,6 +52,15 @@
 #endif
 
 /****************************************************************************
+ * LEDs
+ */
+
+#define GPIO_LED1 (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz| \
+                   GPIO_OUTPUT_CLEAR|GPIO_PORTG|GPIO_PIN6)
+
+#define GPIO_LED2 (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz| \
+                   GPIO_OUTPUT_CLEAR|GPIO_PORTC|GPIO_PIN6)
+/****************************************************************************
  * Public Types
  ****************************************************************************/
 
