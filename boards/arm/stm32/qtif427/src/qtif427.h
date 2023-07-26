@@ -54,14 +54,14 @@
 /* GPIOs */
 
 #define BOARD_NGPIOIN     0
-#define BOARD_NGPIOOUT    3
+#define BOARD_NGPIOOUT    2
 #define BOARD_NGPIOINT    0 
 
 #define GPIO_485_HIGH         (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_SPEED_50MHz |  \
                       GPIO_OUTPUT_SET | GPIO_PORTD | GPIO_PIN7)
 
 #define GPIO_CAN_STBY	      (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_SPEED_50MHz |  \
-                      GPIO_OUTPUT_SET | GPIO_PORTA | GPIO_PIN13)
+                      GPIO_OUTPUT_CLEAR | GPIO_PORTA | GPIO_PIN13)
 
 #define GPIO_IMU_CS	     (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_SPEED_50MHz |  \
 			GPIO_OUTPUT_SET | GPIO_PORTA | GPIO_PIN15)
@@ -84,6 +84,12 @@ int stm32_icm42688_initialize(void);
 int stm32_bringup(void);
 int stm32_gpio_initialize(void);
 int stm32_can_setup(void);
+int stm32_adc_setup(void);
+
+/* TIMER1 capture for RC */
+#ifdef CONFIG_CAPTURE
+int stm32_capture_setup(void);
+#endif
 
 #endif /* __ASSEMBLY__ */
-#endif /* __BOARDS_ARM_STM32_QCOMF427_SRC_QCOMF427_H */
+#endif /* __BOARDS_ARM_STM32_QCOMF427_SRC_QTIF427_H */
