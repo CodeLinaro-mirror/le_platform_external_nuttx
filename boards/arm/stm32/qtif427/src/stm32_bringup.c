@@ -92,6 +92,7 @@ int stm32_bringup(void)
 #endif
   int ret = OK;
 
+  printf("stm32 bringup\n");
 #ifdef CONFIG_FS_PROCFS
   /* Mount the procfs file system */
 
@@ -136,6 +137,26 @@ printf("stm32_gpio_initialize done \n");
     }
 #endif
 
+#ifdef CONFIG_CAPTURE
+  /* Initialize Capture and register the Capture driver. */
+  ret = stm32_capture_setup();
+  if (ret < 0)
+  {
+	  syslog(LOG_ERR, "ERROR: stm32_capture_setup failed: %d\n", ret);
+	  return ret;
+  }
+  syslog(LOG_INFO, "Capture have initialized\n");
+#endif
 
+#ifdef CONFIG_ADC
+  /* Initialize ADC and register the ADC driver. */
+  ret = stm32_adc_setup();
+  if (ret <0)
+  {
+	  syslog(LOG_ERR, "ERROR: stm32_adc_setup failed: %d\n", ret);
+	  return ret;
+  }
+  syslog(LOG_INFO, "ADC  have initialized\n");
+#endif
   return ret;
 }
