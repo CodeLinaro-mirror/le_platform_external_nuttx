@@ -1,5 +1,5 @@
 /****************************************************************************
- * drivers/sensors/mpu60x0.c
+ * drivers/sensors/icm42688.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -16,14 +16,10 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  *
- ****************************************************************************/
-
-/****************************************************************************
- * TODO: Theory of Operation
- ****************************************************************************/
-
-/****************************************************************************
- * Included Files
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
  ****************************************************************************/
 
 #include <nuttx/config.h>
@@ -37,13 +33,12 @@
 
 #include <nuttx/compiler.h>
 #include <nuttx/kmalloc.h>
-#ifdef CONFIG_MPU60X0_SPI
+
+
 #include <nuttx/spi/spi.h>
-#else
-#include <nuttx/i2c/i2c_master.h>
-#endif
+
 #include <nuttx/fs/fs.h>
-#include <nuttx/sensors/mpu60x0.h>
+#include <nuttx/sensors/icm42688.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -55,7 +50,7 @@
 
 /* Creates a mask of @m bits, i.e. MASK(2) -> 00000011 */
 
-#define MASK(m) (BIT(m) - 1)
+#define MASK(m) (BIT((m) + 1) - 1)
 
 /* Masks and shifts @v into bit field @m */
 
@@ -67,383 +62,373 @@
 
 /* SPI read/write codes */
 
-#define MPU_REG_READ 0x80
-#define MPU_REG_WRITE 0
+#define IMU_REG_READ 0x80
+#define IMU_REG_WRITE 0
+#define ICM42688_ID  0x47
 
 /****************************************************************************
  * Private Types
  ****************************************************************************/
 
-enum mpu_regaddr_e
+enum imu_regaddr_e
 {
-  SELF_TEST_X = 0x0d,
-  SELF_TEST_Y = 0x0e,
-  SELF_TEST_Z = 0x0f,
-  SELF_TEST_A = 0x10,
-  SMPLRT_DIV = 0x19,
+    /* bank0 (default）)*/
+    ICM42688_DEVICE_CONFIG = 0x11,
+    ICM42688_DRIVE_CONFIG = 0x13,
+    ICM42688_INT_CONFIG = 0x14,
+    ICM42688_FIFO_CONFIG = 0x16,
+    ICM42688_TEMP_DATA1 = 0x1D,
+    ICM42688_TEMP_DATA0 = 0x1E,
+    ICM42688_ACCEL_DATA_X1 =  0x1F,
+    ICM42688_ACCEL_DATA_X0 =  0x20,
+    ICM42688_ACCEL_DATA_Y1 =  0x21,
+    ICM42688_ACCEL_DATA_Y0 =  0x22,
+    ICM42688_ACCEL_DATA_Z1 =  0x23,
+    ICM42688_ACCEL_DATA_Z0 =  0x24,
+    ICM42688_GYRO_DATA_X1 = 0x25,
+    ICM42688_GYRO_DATA_X0 = 0x26,
+    ICM42688_GYRO_DATA_Y1 = 0x27,
+    ICM42688_GYRO_DATA_Y0 = 0x28,
+    ICM42688_GYRO_DATA_Z1 = 0x29,
+    ICM42688_GYRO_DATA_Z0 = 0x2A,
+    ICM42688_TMST_FSYNCH = 0x2B,
+    ICM42688_TMST_FSYNCL = 0x2C,
+    ICM42688_INT_STATUS = 0x2D,
+    ICM42688_FIFO_COUNTH = 0x2E,
+    ICM42688_FIFO_COUNTL = 0x2F,
+    ICM42688_FIFO_DATA = 0x30,
+    ICM42688_APEX_DATA0 = 0x31,
+    ICM42688_APEX_DATA1 = 0x32,
+    ICM42688_APEX_DATA2 = 0x33,
+    ICM42688_APEX_DATA3 = 0x34,
+    ICM42688_APEX_DATA4 = 0x35,
+    ICM42688_APEX_DATA5 = 0x36,
+    ICM42688_INT_STATUS2 = 0x37,
+    ICM42688_INT_STATUS3 = 0x38,
+    ICM42688_SIGNAL_PATH_RESET =   0x4B,
+    ICM42688_INTF_CONFIG0 = 0x4C,
+    ICM42688_INTF_CONFIG1 = 0x4D,
+    ICM42688_PWR_MGMT0 = 0x4E,
+    ICM42688_GYRO_CONFIG0 = 0x4F,
+    ICM42688_ACCEL_CONFIG0 =  0x50,
+    ICM42688_GYRO_CONFIG1 = 0x51,
+    ICM42688_GYRO_ACCEL_CONFIG0 = 0x52,
+    ICM42688_ACCEL_CONFIG1 = 0x53,
+    ICM42688_TMST_CONFIG = 0x54,
+    ICM42688_APEX_CONFIG0 = 0x56,
+    ICM42688_SMD_CONFIG = 0x57,
+    ICM42688_FIFO_CONFIG1 = 0x5F,
+    ICM42688_FIFO_CONFIG2 = 0x60,
+    ICM42688_FIFO_CONFIG3 = 0x61,
+    ICM42688_FSYNC_CONFIG = 0x62,
+    ICM42688_INT_CONFIG0 = 0x63,
+    ICM42688_INT_CONFIG1 = 0x64,
+    ICM42688_INT_SOURCE0 = 0x65,
+    ICM42688_INT_SOURCE1 = 0x66,
+    ICM42688_INT_SOURCE3 = 0x68,
+    ICM42688_INT_SOURCE4 = 0x69,
+    ICM42688_FIFO_LOST_PKT0 = 0x6C,
+    ICM42688_FIFO_LOST_PKT1 = 0x6D,
+    ICM42688_SELF_TEST_CONFIG = 0x70,
+    ICM42688_WHO_AM_I = 0x75,
+    ICM42688_REG_BANK_SEL = 0x76,
 
-  /* __SHIFT : number of empty bits to the right of the field
-   * __WIDTH : width of the field, in bits
-   *
-   * single-bit fields don't have __SHIFT or __mask
-   */
+    /* bank 1 */
+    ICM42688_SENSOR_CONFIG0 = 0x03,
+    ICM42688_GYRO_CONFIG_STATIC2 = 0x0B,
+    ICM42688_GYRO_CONFIG_STATIC3 = 0x0C,
+    ICM42688_GYRO_CONFIG_STATIC4 = 0x0D,
+    ICM42688_GYRO_CONFIG_STATIC5 = 0x0E,
+    ICM42688_GYRO_CONFIG_STATIC6 = 0x0F,
+    ICM42688_GYRO_CONFIG_STATIC7 = 0x10,
+    ICM42688_GYRO_CONFIG_STATIC8 = 0x11,
+    ICM42688_GYRO_CONFIG_STATIC9 = 0x12,
+    ICM42688_GYRO_CONFIG_STATIC10 = 0x13,
+    ICM42688_XG_ST_DATA = 0x5F,
+    ICM42688_YG_ST_DATA = 0x60,
+    ICM42688_ZG_ST_DATA = 0x61,
+    ICM42688_TMSTVAL0 = 0x62,
+    ICM42688_TMSTVAL1 = 0x63,
+    ICM42688_TMSTVAL2 = 0x64,
+    ICM42688_INTF_CONFIG4 =   0x7A,
+    ICM42688_INTF_CONFIG5 =   0x7B,
+    ICM42688_INTF_CONFIG6 =   0x7C,
 
-  CONFIG = 0x1a,
-  CONFIG__EXT_SYNC_SET__SHIFT = 3,
-  CONFIG__EXT_SYNC_SET__WIDTH = 3,
-  CONFIG__DLPF_CFG__SHIFT = 0,
-  CONFIG__DLPF_CFG__WIDTH = 3,
+    /* bank2 */
+    ICM42688_ACCEL_CONFIG_STATIC2 = 0x03,
+    ICM42688_ACCEL_CONFIG_STATIC3 = 0x04,
+    ICM42688_ACCEL_CONFIG_STATIC4 = 0x05,
+    ICM42688_XA_ST_DATA = 0x3B,
+    ICM42688_YA_ST_DATA = 0x3C,
+    ICM42688_ZA_ST_DATA = 0x3D,
 
-  GYRO_CONFIG = 0x1b,
-  GYRO_CONFIG__FS_SEL__SHIFT = 3,
-  GYRO_CONFIG__FS_SEL__WIDTH = 2,
+    /* bank4 */
+    ICM42688_GYRO_ON_OFF_CONFIG =  0x0E,
+    ICM42688_APEX_CONFIG1 =   0x40,
+    ICM42688_APEX_CONFIG2 =   0x41,
+    ICM42688_APEX_CONFIG3 =   0x42,
+    ICM42688_APEX_CONFIG4 =   0x43,
+    ICM42688_APEX_CONFIG5 =   0x44,
+    ICM42688_APEX_CONFIG6 =   0x45,
+    ICM42688_APEX_CONFIG7 =   0x46,
+    ICM42688_APEX_CONFIG8 =   0x47,
+    ICM42688_APEX_CONFIG9 =   0x48,
+    ICM42688_ACCEL_WOM_X_THR = 0x4A,
+    ICM42688_ACCEL_WOM_Y_THR = 0x4B,
+    ICM42688_ACCEL_WOM_Z_THR = 0x4C,
+    ICM42688_INT_SOURCE6 =    0x4D,
+    ICM42688_INT_SOURCE7 =    0x4E,
+    ICM42688_INT_SOURCE8 =    0x4F,
+    ICM42688_INT_SOURCE9 =    0x50,
+    ICM42688_INT_SOURCE10 =   0x51,
+    ICM42688_OFFSET_USER0 =   0x77,
+    ICM42688_OFFSET_USER1 =   0x78,
+    ICM42688_OFFSET_USER2 =   0x79,
+    ICM42688_OFFSET_USER3 =   0x7A,
+    ICM42688_OFFSET_USER4 =   0x7B,
+    ICM42688_OFFSET_USER5 =   0x7C,
+    ICM42688_OFFSET_USER6 =   0x7D,
+    ICM42688_OFFSET_USER7 =   0x7E,
+    ICM42688_OFFSET_USER8 =   0x7F,
 
-  ACCEL_CONFIG = 0x1c,
-  ACCEL_CONFIG__XA_ST = BIT(7),
-  ACCEL_CONFIG__YA_ST = BIT(6),
-  ACCEL_CONFIG__ZA_ST = BIT(5),
-  ACCEL_CONFIG__AFS_SEL__SHIFT = 3,
-  ACCEL_CONFIG__AFS_SEL__WIDTH = 2,
+    ICM42688_ADDRESS  = 0x69,   /* Address of ICM42688 accel/gyro when ADO = HIGH */
 
-  MOT_THR = 0x1f,
-  FIFO_EN = 0x23,
-  I2C_MST_CTRL = 0x24,
-  I2C_SLV0_ADDR = 0x25,
-  I2C_SLV0_REG = 0x26,
-  I2C_SLV0_CTRL = 0x27,
-  I2C_SLV1_ADDR = 0x28,
-  I2C_SLV1_REG = 0x29,
-  I2C_SLV1_CTRL = 0x2a,
-  I2C_SLV2_ADDR = 0x2b,
-  I2C_SLV2_REG = 0x2c,
-  I2C_SLV2_CTRL = 0x2d,
-  I2C_SLV3_ADDR = 0x2e,
-  I2C_SLV3_REG = 0x2f,
-  I2C_SLV3_CTRL = 0x30,
-  I2C_SLV4_ADDR = 0x31,
-  I2C_SLV4_REG = 0x32,
-  I2C_SLV4_DO = 0x33,
-  I2C_SLV4_CTRL = 0x34,
-  I2C_SLV4_DI = 0x35,         /* RO */
-  I2C_MST_STATUS = 0x36,      /* RO */
+    AFS_2G  = 0x03,
+    AFS_4G  = 0x02,
+    AFS_8G  = 0x01,
+    AFS_16G  = 0x00, /* default */
 
-  INT_PIN_CFG = 0x37,
-  INT_PIN_CFG__INT_LEVEL = BIT(7),
-  INT_PIN_CFG__INT_OPEN = BIT(6),
-  INT_PIN_CFG__LATCH_INT_EN = BIT(5),
-  INT_PIN_CFG__INT_RD_CLEAR = BIT(4),
-  INT_PIN_CFG__FSYNC_INT_LEVEL = BIT(3),
-  INT_PIN_CFG__FSYNC_INT_EN = BIT(2),
-  INT_PIN_CFG__I2C_BYPASS_EN = BIT(1),
+    GFS_2000DPS = 0x00, /* default */
+    GFS_1000DPS = 0x01,
+    GFS_500DPS  = 0x02,
+    GFS_250DPS  = 0x03,
+    GFS_125DPS  = 0x04,
+    GFS_62_5DPS = 0x05,
+    GFS_31_25DPS = 0x06,
+    GFS_15_125DPS = 0x07,
 
-  INT_ENABLE = 0x38,
-  INT_STATUS = 0x3a,          /* RO */
+    AODR_8000Hz = 0x03,
+    AODR_4000Hz = 0x04,
+    AODR_2000Hz = 0x05,
+    AODR_1000Hz = 0x06, /* default */
+    AODR_200Hz = 0x07,
+    AODR_100Hz = 0x08,
+    AODR_50Hz = 0x09,
+    AODR_25Hz = 0x0A,
+    AODR_12_5Hz = 0x0B,
+    AODR_6_25Hz = 0x0C,
+    AODR_3_125Hz = 0x0D,
+    AODR_1_5625Hz = 0x0E,
+    AODR_500Hz  = 0x0F,
 
-  ACCEL_XOUT_H = 0x3b,        /* RO */
-  ACCEL_XOUT_L = 0x3c,        /* RO */
-  ACCEL_YOUT_H = 0x3d,        /* RO */
-  ACCEL_YOUT_L = 0x3e,        /* RO */
-  ACCEL_ZOUT_H = 0x3f,        /* RO */
-  ACCEL_ZOUT_L = 0x40,        /* RO */
-  TEMP_OUT_H = 0x41,          /* RO */
-  TEMP_OUT_L = 0x42,          /* RO */
-  GYRO_XOUT_H = 0x43,         /* RO */
-  GYRO_XOUT_L = 0x44,         /* RO */
-  GYRO_YOUT_H = 0x45,         /* RO */
-  GYRO_YOUT_L = 0x46,         /* RO */
-  GYRO_ZOUT_H = 0x47,         /* RO */
-  GYRO_ZOUT_L = 0x48,         /* RO */
-
-  EXT_SENS_DATA_00 = 0x49,    /* RO */
-  EXT_SENS_DATA_01 = 0x4a,    /* RO */
-  EXT_SENS_DATA_02 = 0x4b,    /* RO */
-  EXT_SENS_DATA_03 = 0x4c,    /* RO */
-  EXT_SENS_DATA_04 = 0x4d,    /* RO */
-  EXT_SENS_DATA_05 = 0x4e,    /* RO */
-  EXT_SENS_DATA_06 = 0x4f,    /* RO */
-  EXT_SENS_DATA_07 = 0x50,    /* RO */
-  EXT_SENS_DATA_08 = 0x51,    /* RO */
-  EXT_SENS_DATA_09 = 0x52,    /* RO */
-  EXT_SENS_DATA_10 = 0x53,    /* RO */
-  EXT_SENS_DATA_11 = 0x54,    /* RO */
-  EXT_SENS_DATA_12 = 0x55,    /* RO */
-  EXT_SENS_DATA_13 = 0x56,    /* RO */
-  EXT_SENS_DATA_14 = 0x57,    /* RO */
-  EXT_SENS_DATA_15 = 0x58,    /* RO */
-  EXT_SENS_DATA_16 = 0x59,    /* RO */
-  EXT_SENS_DATA_17 = 0x5a,    /* RO */
-  EXT_SENS_DATA_18 = 0x5b,    /* RO */
-  EXT_SENS_DATA_19 = 0x5c,    /* RO */
-  EXT_SENS_DATA_20 = 0x5d,    /* RO */
-  EXT_SENS_DATA_21 = 0x5e,    /* RO */
-  EXT_SENS_DATA_22 = 0x5f,    /* RO */
-  EXT_SENS_DATA_23 = 0x60,    /* RO */
-
-  I2C_SLV0_DO = 0x63,
-  I2C_SLV1_DO = 0x64,
-  I2C_SLV2_DO = 0x65,
-  I2C_SLV3_DO = 0x66,
-  I2C_MST_DELAY_CTRL = 0x67,
-
-  SIGNAL_PATH_RESET = 0x68,
-  SIGNAL_PATH_RESET__GYRO_RESET = BIT(2),
-  SIGNAL_PATH_RESET__ACCEL_RESET = BIT(1),
-  SIGNAL_PATH_RESET__TEMP_RESET = BIT(0),
-  SIGNAL_PATH_RESET__ALL_RESET = BIT(3) - 1,
-
-  MOT_DETECT_CTRL = 0x69,
-
-  USER_CTRL = 0x6a,
-  USER_CTRL__FIFO_EN = BIT(6),
-  USER_CTRL__I2C_MST_EN = BIT(5),
-  USER_CTRL__I2C_IF_DIS = BIT(4),
-  USER_CTRL__FIFO_RESET = BIT(2),
-  USER_CTRL__I2C_MST_RESET = BIT(1),
-  USER_CTRL__SIG_COND_RESET = BIT(0),
-
-  PWR_MGMT_1 = 0x6b,          /* Reset: 0x40 */
-  PWR_MGMT_1__DEVICE_RESET = BIT(7),
-  PWR_MGMT_1__SLEEP = BIT(6),
-  PWR_MGMT_1__CYCLE = BIT(5),
-  PWR_MGMT_1__TEMP_DIS = BIT(3),
-  PWR_MGMT_1__CLK_SEL__SHIFT = 0,
-  PWR_MGMT_1__CLK_SEL__WIDTH = 3,
-
-  PWR_MGMT_2 = 0x6c,
-  FIFO_COUNTH = 0x72,
-  FIFO_COUNTL = 0x73,
-  FIFO_R_W = 0x74,
-  WHO_AM_I = 0x75,            /* RO reset: 0x68 */
+    GODR_8000Hz = 0x03,
+    GODR_4000Hz = 0x04,
+    GODR_2000Hz = 0x05,
+    GODR_1000Hz = 0x06, /* default */
+    GODR_200Hz = 0x07,
+    GODR_100Hz = 0x08,
+    GODR_50Hz  = 0x09,
+    GODR_25Hz  = 0x0A,
+    GODR_12_5Hz = 0x0B,
+    GODR_500Hz = 0x0F,
 };
 
-/* Describes the mpu60x0 sensor register file. This structure reflects
- * the underlying hardware, so don't change it!
- */
 
 begin_packed_struct struct sensor_data_s
 {
-  int16_t x_accel;
-  int16_t y_accel;
-  int16_t z_accel;
-  int16_t temp;
-  int16_t x_gyro;
-  int16_t y_gyro;
-  int16_t z_gyro;
+    int16_t temp;
+    int16_t x_accel;
+    int16_t y_accel;
+    int16_t z_accel;
+    int16_t x_gyro;
+    int16_t y_gyro;
+    int16_t z_gyro;
 } end_packed_struct;
 
 /* Used by the driver to manage the device */
 
-struct mpu_dev_s
+struct imu_dev_s
 {
-  mutex_t lock;               /* mutex for this structure */
-  struct mpu_config_s config; /* board-specific information */
+    mutex_t lock;               /* mutex for this structure */
+    struct imu_config_s config; /* board-specific information */
 
-  struct sensor_data_s buf;   /* temporary buffer (for read(), etc.) */
-  size_t bufpos;              /* cursor into @buf, in bytes (!) */
+    struct sensor_data_s buf;   /* temporary buffer (for read(), etc.) */
+    size_t bufpos;              /* cursor into @buf, in bytes (!) */
 };
 
 /****************************************************************************
  * Private Function Function Prototypes
  ****************************************************************************/
 
-static int mpu_open(FAR struct file *filep);
-static int mpu_close(FAR struct file *filep);
-static ssize_t mpu_read(FAR struct file *filep, FAR char *buf, size_t len);
-static ssize_t mpu_write(FAR struct file *filep, FAR const char *buf,
+static float g_accsensitivity;   //加速度的最小分辨率 mg/LSB
+static float g_gyrosensitivity;    //陀螺仪的最小分辨率
+
+static int imu_open(FAR struct file *filep);
+static int imu_close(FAR struct file *filep);
+static ssize_t imu_read(FAR struct file *filep, FAR char *buf, size_t len);
+static ssize_t imu_write(FAR struct file *filep, FAR const char *buf,
                          size_t len);
-static off_t mpu_seek(FAR struct file *filep, off_t offset, int whence);
+static off_t imu_seek(FAR struct file *filep, off_t offset, int whence);
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
-static const struct file_operations g_mpu_fops =
+static const struct file_operations g_imu_fops =
 {
-  mpu_open,        /* open */
-  mpu_close,       /* close */
-  mpu_read,        /* read */
-  mpu_write,       /* write */
-  mpu_seek,        /* seek */
+    imu_open,        /* open */
+    imu_close,       /* close */
+    imu_read,        /* read */
+    imu_write,       /* write */
+    imu_seek,        /* seek */
+    NULL,            /* ioctl */
+    NULL             /* poll */
+#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
+    , NULL           /* unlink */
+#endif
 };
 
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
 
-/* NOTE :
- *
- * In all of the following code, functions named with a double leading
- * underscore '__' must be invoked ONLY if the mpu_dev_s lock is
- * already held. Failure to do this might cause the transaction to get
- * interrupted, which will likely confuse the data you get back.
- *
- * The mpu_dev_s lock is NOT the same thing as, i.e. the SPI master
- * interface lock: the latter protects the bus interface hardware
- * (which may have other SPI devices attached), the former protects
- * the chip and its associated data.
- */
+#ifdef CONFIG_ICM42688_SPI
 
-#ifdef CONFIG_MPU60X0_SPI
-/* __mpu_read_reg(), but for spi-connected devices. See that function
- * for documentation.
- */
-
-static int __mpu_read_reg_spi(FAR struct mpu_dev_s *dev,
-                              enum mpu_regaddr_e reg_addr,
+static int __imu_read_reg_spi(FAR struct imu_dev_s *dev,
+                              enum imu_regaddr_e reg_addr,
                               FAR uint8_t *buf, uint8_t len)
 {
-  int ret;
-  FAR struct spi_dev_s *spi = dev->config.spi;
-  int id = dev->config.spi_devid;
+    int ret;
+    FAR struct spi_dev_s *spi = dev->config.spi;
+    int id = dev->config.spi_devid;
 
-  /* We'll probably return the number of bytes asked for. */
+    /* We'll probably return the number of bytes asked for. */
 
-  ret = len;
+    ret = len;
 
-  /* Grab and configure the SPI master device: always mode 0, 20MHz if it's a
-   * data register, 1MHz otherwise (per datasheet).
-   */
+    /* Grab and configure the SPI master device: always mode 0, 20MHz if it's a
+     * data register, 1MHz otherwise (per datasheet).
+     */
 
-  SPI_LOCK(spi, true);
-  SPI_SETMODE(spi, SPIDEV_MODE0);
+    SPI_LOCK(spi, true);
+    SPI_SETMODE(spi, SPIDEV_MODE0);
 
-  if ((reg_addr >= ACCEL_XOUT_H) && ((reg_addr + len) <= I2C_SLV0_DO))
+    /* SET SPI frequency is 24MHZ */
+    SPI_SETFREQUENCY(spi, 1000000);
+
+    /* Select the chip. */
+    SPI_SELECT(spi, id, true);
+    /* Send the read request. */
+    SPI_SEND(spi, reg_addr | IMU_REG_READ);
+
+    /* Clock in the data. */
+    while (0 != len--)
     {
-      SPI_SETFREQUENCY(spi, 20000000);
-    }
-  else
-    {
-      SPI_SETFREQUENCY(spi, 1000000);
-    }
-
-  /* Select the chip. */
-
-  SPI_SELECT(spi, id, true);
-
-  /* Send the read request. */
-
-  SPI_SEND(spi, reg_addr | MPU_REG_READ);
-
-  /* Clock in the data. */
-
-  while (0 != len--)
-    {
-      *buf++ = (uint8_t) (SPI_SEND(spi, 0xff));
+        *buf++ = (uint8_t) (SPI_SEND(spi, 0xff));
     }
 
-  /* Deselect the chip, release the SPI master. */
+    /* Deselect the chip, release the SPI master. */
+    SPI_SELECT(spi, id, true);
+    SPI_LOCK(spi, false);
 
-  SPI_SELECT(spi, id, false);
-  SPI_LOCK(spi, false);
-
-  return ret;
+    return ret;
 }
 
-/* __mpu_write_reg(), but for SPI connections. */
+/* __imu_write_reg(), but for SPI connections. */
 
-static int __mpu_write_reg_spi(FAR struct mpu_dev_s *dev,
-                               enum mpu_regaddr_e reg_addr,
+static int __imu_write_reg_spi(FAR struct imu_dev_s *dev,
+                               enum imu_regaddr_e reg_addr,
                                FAR const uint8_t * buf, uint8_t len)
 {
-  int ret;
-  FAR struct spi_dev_s *spi = dev->config.spi;
-  int id = dev->config.spi_devid;
+    int ret;
+    FAR struct spi_dev_s *spi = dev->config.spi;
+    int id = dev->config.spi_devid;
 
-  /* Hopefully, we'll return all the bytes they're asking for. */
+    /* Hopefully, we'll return all the bytes they're asking for. */
+    ret = len;
 
-  ret = len;
+    /* Grab and configure the SPI master device. */
+    SPI_LOCK(spi, true);
+    SPI_SETMODE(spi, SPIDEV_MODE0);
+    SPI_SETFREQUENCY(spi, 1000000);
 
-  /* Grab and configure the SPI master device. */
+    /* Select the chip. */
+    SPI_SELECT(spi, id, true);
 
-  SPI_LOCK(spi, true);
-  SPI_SETMODE(spi, SPIDEV_MODE0);
-  SPI_SETFREQUENCY(spi, 1000000);
+    /* Send the write request. */
+    SPI_SEND(spi, reg_addr | IMU_REG_WRITE);
 
-  /* Select the chip. */
-
-  SPI_SELECT(spi, id, true);
-
-  /* Send the write request. */
-
-  SPI_SEND(spi, reg_addr | MPU_REG_WRITE);
-
-  /* Send the data. */
-
-  while (0 != len--)
+    /* Send the data. */
+    while (0 != len--)
     {
-      SPI_SEND(spi, *buf++);
+        SPI_SEND(spi, *buf++);
     }
 
-  /* Release the chip and SPI master. */
+    /* Release the chip and SPI master. */
+    SPI_SELECT(spi, id, false);
+    SPI_LOCK(spi, false);
 
-  SPI_SELECT(spi, id, false);
-  SPI_LOCK(spi, false);
-
-  return ret;
+    return ret;
 }
 
 #else
 
-/* __mpu_read_reg(), but for i2c-connected devices. */
-
-static int __mpu_read_reg_i2c(FAR struct mpu_dev_s *dev,
-                              uint8_t reg_addr,
+/* __imu_read_reg(), but for i2c-connected devices. */
+static int __imu_read_reg_i2c(FAR struct imu_dev_s *dev,
+                              enum imu_regaddr_e reg_addr,
                               FAR uint8_t *buf, uint8_t len)
 {
-  int ret;
-  struct i2c_msg_s msg[2];
+    int ret;
+    struct i2c_msg_s msg[2];
 
-  msg[0].frequency = CONFIG_MPU60X0_I2C_FREQ;
-  msg[0].addr      = dev->config.addr;
-  msg[0].flags     = I2C_M_NOSTOP;
-  msg[0].buffer    = &reg_addr;
-  msg[0].length    = 1;
+    msg[0].frequency = CONFIG_ICM42688_I2C_FREQ;
+    msg[0].addr      = dev->config.addr;
+    msg[0].flags     = I2C_M_NOSTOP;
+    msg[0].buffer    = &reg_addr;
+    msg[0].length    = 1;
 
-  msg[1].frequency = CONFIG_MPU60X0_I2C_FREQ;
-  msg[1].addr      = dev->config.addr;
-  msg[1].flags     = I2C_M_READ;
-  msg[1].buffer    = buf;
-  msg[1].length    = len;
+    msg[1].frequency = CONFIG_ICM42688_I2C_FREQ;
+    msg[1].addr      = dev->config.addr;
+    msg[1].flags     = I2C_M_READ;
+    msg[1].buffer    = buf;
+    msg[1].length    = len;
 
-  ret = I2C_TRANSFER(dev->config.i2c, msg, 2);
-  if (ret < 0)
+    ret = I2C_TRANSFER(dev->config.i2c, msg, 2);
+    if (ret < 0)
     {
-      snerr("ERROR: I2C_TRANSFER(read) failed: %d\n", ret);
-      return ret;
+        snerr("ERROR: I2C_TRANSFER(read) failed: %d\n", ret);
+        return ret;
     }
 
-  return OK;
+    return OK;
 }
 
-static int __mpu_write_reg_i2c(FAR struct mpu_dev_s *dev,
-                               uint8_t reg_addr,
+static int __imu_write_reg_i2c(FAR struct imu_dev_s *dev,
+                               enum imu_regaddr_e reg_addr,
                                FAR const uint8_t *buf, uint8_t len)
 {
-  int ret;
-  struct i2c_msg_s msg[2];
+    int ret;
+    struct i2c_msg_s msg[2];
 
-  msg[0].frequency = CONFIG_MPU60X0_I2C_FREQ;
-  msg[0].addr      = dev->config.addr;
-  msg[0].flags     = I2C_M_NOSTOP;
-  msg[0].buffer    = &reg_addr;
-  msg[0].length    = 1;
-  msg[1].frequency = CONFIG_MPU60X0_I2C_FREQ;
-  msg[1].addr      = dev->config.addr;
-  msg[1].flags     = I2C_M_NOSTART;
-  msg[1].buffer    = (FAR uint8_t *)buf;
-  msg[1].length    = len;
-  ret = I2C_TRANSFER(dev->config.i2c, msg, 2);
-  if (ret < 0)
+    msg[0].frequency = CONFIG_ICM42688_I2C_FREQ;
+    msg[0].addr      = dev->config.addr;
+    msg[0].flags     = I2C_M_NOSTOP;
+    msg[0].buffer    = &reg_addr;
+    msg[0].length    = 1;
+    msg[1].frequency = CONFIG_ICM42688_I2C_FREQ;
+    msg[1].addr      = dev->config.addr;
+    msg[1].flags     = I2C_M_NOSTART;
+    msg[1].buffer    = (FAR uint8_t *)buf;
+    msg[1].length    = len;
+    ret = I2C_TRANSFER(dev->config.i2c, msg, 2);
+    if (ret < 0)
     {
-      snerr("ERROR: I2C_TRANSFER(write) failed: %d\n", ret);
-      return ret;
+        snerr("ERROR: I2C_TRANSFER(write) failed: %d\n", ret);
+        return ret;
     }
 
-  return OK;
+    return OK;
 }
-#endif /* CONFIG_MPU60X0_SPI */
+#endif /* CONFIG_ICM42688_SPI */
 
-/* __mpu_read_reg()
+/* __imu_read_reg()
  *
  * Reads a block of @len byte-wide registers, starting at @reg_addr,
  * from the device connected to @dev. Bytes are returned in @buf,
@@ -454,32 +439,29 @@ static int __mpu_write_reg_i2c(FAR struct mpu_dev_s *dev,
  * Returns number of bytes read, or a negative errno.
  */
 
-static inline int __mpu_read_reg(FAR struct mpu_dev_s *dev,
-                                 enum mpu_regaddr_e reg_addr,
+static inline int __imu_read_reg(FAR struct imu_dev_s *dev,
+                                 enum imu_regaddr_e reg_addr,
                                  FAR uint8_t *buf, uint8_t len)
 {
-#ifdef CONFIG_MPU60X0_SPI
-  /* If we're wired to SPI, use that function. */
-
-  if (dev->config.spi != NULL)
+#ifdef CONFIG_ICM42688_SPI
+    /* If we're wired to SPI, use that function. */
+    if (dev->config.spi != NULL)
     {
-      return __mpu_read_reg_spi(dev, reg_addr, buf, len);
+        return __imu_read_reg_spi(dev, reg_addr, buf, len);
     }
 #else
-  /* If we're wired to I2C, use that function. */
-
-  if (dev->config.i2c != NULL)
+    /* If we're wired to I2C, use that function. */
+    if (dev->config.i2c != NULL)
     {
-      return __mpu_read_reg_i2c(dev, reg_addr, buf, len);
+        return __imu_read_reg_i2c(dev, reg_addr, buf, len);
     }
 #endif
 
-  /* If we get this far, it's because we can't "find" our device. */
-
-  return -ENODEV;
+    /* If we get this far, it's because we can't "find" our device. */
+    return -ENODEV;
 }
 
-/* __mpu_write_reg()
+/* __imu_write_reg()
  *
  * Writes a block of @len byte-wide registers, starting at @reg_addr,
  * using the values in @buf to the device connected to @dev. Register
@@ -494,238 +476,225 @@ static inline int __mpu_read_reg(FAR struct mpu_dev_s *dev,
  * Returns number of bytes written, or a negative errno.
  */
 
-static inline int __mpu_write_reg(FAR struct mpu_dev_s *dev,
-                                  enum mpu_regaddr_e reg_addr,
+static inline int __imu_write_reg(FAR struct imu_dev_s *dev,
+                                  enum imu_regaddr_e reg_addr,
                                   FAR const uint8_t *buf, uint8_t len)
 {
-#ifdef CONFIG_MPU60X0_SPI
-  /* If we're connected to SPI, use that function. */
-
-  if (dev->config.spi != NULL)
+#ifdef CONFIG_ICM42688_SPI
+    /* If we're connected to SPI, use that function. */
+    if (dev->config.spi != NULL)
     {
-      return __mpu_write_reg_spi(dev, reg_addr, buf, len);
+        return __imu_write_reg_spi(dev, reg_addr, buf, len);
     }
 #else
-  if (dev->config.i2c != NULL)
+    if (dev->config.i2c != NULL)
     {
-      return __mpu_write_reg_i2c(dev, reg_addr, buf, len);
+        return __imu_write_reg_i2c(dev, reg_addr, buf, len);
     }
 #endif
 
-  /* If we get this far, it's because we can't "find" our device. */
-
-  return -ENODEV;
+    /* If we get this far, it's because we can't "find" our device. */
+    return -ENODEV;
 }
 
-/* __mpu_read_imu()
- *
- * Reads the whole IMU data file from @dev in one uninterrupted pass,
- * placing the sampled values into @buf. This function is the only way
- * to guarantee that the measured values are sampled as closely-spaced
- * in time as the hardware permits, which is almost always what you
- * want.
- */
+/* set register  */
 
-static inline int __mpu_read_imu(FAR struct mpu_dev_s *dev,
+/* read temp & imu xyz accs & gryos */
+static inline int __imu_read_imu(FAR struct imu_dev_s *dev,
                                  FAR struct sensor_data_s *buf)
 {
-  return __mpu_read_reg(dev, ACCEL_XOUT_H, (uint8_t *) buf, sizeof(*buf));
+    return __imu_read_reg(dev, ICM42688_TEMP_DATA1, (uint8_t *) buf, sizeof(*buf));
 }
 
-/* __mpu_read_pwr_mgmt_1()
- *
- * Returns the value of the PWR_MGMT_1 register from @dev.
- */
-
-static inline uint8_t __mpu_read_pwr_mgmt_1(FAR struct mpu_dev_s *dev)
-{
-  uint8_t buf = 0xff;
-  __mpu_read_reg(dev, PWR_MGMT_1, &buf, sizeof(buf));
-  return buf;
-}
-
-static inline int __mpu_write_signal_path_reset(FAR struct mpu_dev_s *dev,
+static inline int __imu_set_bank(FAR struct imu_dev_s *dev,
                                                 uint8_t val)
 {
-  return __mpu_write_reg(dev, SIGNAL_PATH_RESET, &val, sizeof(val));
+    return __imu_write_reg(dev, ICM42688_REG_BANK_SEL, &val, sizeof(val));
 }
 
-static inline int __mpu_write_int_pin_cfg(FAR struct mpu_dev_s *dev,
-                                          uint8_t val)
+static inline int __imu_set_INTF_CONFIG4(FAR struct imu_dev_s *dev,
+                                                uint8_t val)
 {
-  return __mpu_write_reg(dev, INT_PIN_CFG, &val, sizeof(val));
+    return __imu_write_reg(dev, ICM42688_INTF_CONFIG4, &val, sizeof(val));
 }
 
-static inline int __mpu_write_pwr_mgmt_1(FAR struct mpu_dev_s *dev,
-                                         uint8_t val)
-{
-  return __mpu_write_reg(dev, PWR_MGMT_1, &val, sizeof(val));
-}
-
-static inline int __mpu_write_pwr_mgmt_2(FAR struct mpu_dev_s *dev,
-                                         uint8_t val)
-{
-  return __mpu_write_reg(dev, PWR_MGMT_2, &val, sizeof(val));
-}
-
-#ifdef CONFIG_MPU60X0_SPI
-static inline int __mpu_write_user_ctrl(FAR struct mpu_dev_s *dev,
+static inline int __imu_write_fifo_en(FAR struct imu_dev_s *dev,
                                         uint8_t val)
 {
-  return __mpu_write_reg(dev, USER_CTRL, &val, sizeof(val));
+    return __imu_write_reg(dev, ICM42688_FIFO_CONFIG, &val, sizeof(val));
 }
-#endif
 
-/* __mpu_write_gyro_config() :
+static inline uint8_t __imu_read_who_am_i(FAR struct imu_dev_s *dev)
+{
+    uint8_t val = 0xff;
+    __imu_read_reg(dev, ICM42688_WHO_AM_I, &val, sizeof(val));
+    return val;
+}
+
+/* Locks and unlocks the @dev data structure (mutex).
  *
- * Sets the @fs_sel bit in GYRO_CONFIG to the value provided. Per the
- * datasheet, the meaning of @fs_sel is as follows:
- *
- * GYRO_CONFIG(0x1b) :   XG_ST YG_ST ZG_ST FS_SEL1 FS_SEL0 x  x  x
- *
- *    XG_ST, YG_ST, ZG_ST  :  self-test (unsupported in this driver)
- *         1 -> activate self-test on X, Y, and/or Z gyros
- *
- *    FS_SEL[10] : full-scale range select
- *         0 -> ±  250 deg/sec
- *         1 -> ±  500 deg/sec
- *         2 -> ± 1000 deg/sec
- *         3 -> ± 2000 deg/sec
+ * Use these functions any time you call one of the lock-dependent
+ * helper functions defined above.
  */
 
-static inline int __mpu_write_gyro_config(FAR struct mpu_dev_s *dev,
-                                          uint8_t fs_sel)
+static void inline imu_lock(FAR struct imu_dev_s *dev)
 {
-  uint8_t val = TO_BITFIELD(GYRO_CONFIG__FS_SEL, fs_sel);
-  return __mpu_write_reg(dev, GYRO_CONFIG, &val, sizeof(val));
+    nxmutex_lock(&dev->lock);
 }
 
-/* __mpu_write_accel_config() :
- *
- * Sets the @afs_sel bit in ACCEL_CONFIG to the value provided. Per
- * the datasheet, the meaning of @afs_sel is as follows:
- *
- * ACCEL_CONFIG(0x1c) :   XA_ST YA_ST ZA_ST AFS_SEL1 AFS_SEL0 x  x  x
- *
- *    XA_ST, YA_ST, ZA_ST  :  self-test (unsupported in this driver)
- *         1 -> activate self-test on X, Y, and/or Z accelerometers
- *
- *    AFS_SEL[10] : full-scale range select
- *         0 -> ±  2 g
- *         1 -> ±  4 g
- *         2 -> ±  8 g
- *         3 -> ± 16 g
- */
-
-static inline int __mpu_write_accel_config(FAR struct mpu_dev_s *dev,
-                                           uint8_t afs_sel)
+static void inline imu_unlock(FAR struct imu_dev_s *dev)
 {
-  uint8_t val = TO_BITFIELD(ACCEL_CONFIG__AFS_SEL, afs_sel);
-  return __mpu_write_reg(dev, ACCEL_CONFIG, &val, sizeof(val));
+    nxmutex_unlock(&dev->lock);
 }
 
-/* CONFIG (0x1a) :   x   x   EXT_SYNC_SET[2..0] DLPF_CFG[2..0]
- *
- *    EXT_SYNC_SET  : frame sync bit position
- *    DLPF_CFG      : digital low-pass filter bandwidth
- * (see datasheet, it's ... complicated)
- */
-
-static inline int __mpu_write_config(FAR struct mpu_dev_s *dev,
-                                     uint8_t ext_sync_set, uint8_t dlpf_cfg)
+static float icm42688getares(uint8_t ascale)
 {
-  uint8_t val = TO_BITFIELD(CONFIG__EXT_SYNC_SET, ext_sync_set) |
-                TO_BITFIELD(CONFIG__DLPF_CFG, dlpf_cfg);
-  return __mpu_write_reg(dev, CONFIG, &val, sizeof(val));
-}
+    float accsensitivity;
 
-/* Resets the mpu60x0, sets it to a default configuration. */
-
-static int mpu_reset(FAR struct mpu_dev_s *dev)
-{
-  int ret;
-#ifdef CONFIG_MPU60X0_SPI
-  if (dev->config.spi == NULL)
+    switch(ascale)
     {
-      return -EINVAL;
+        // Possible accelerometer scales (and their register bit settings) are:
+        // 2 Gs (11), 4 Gs (10), 8 Gs (01), and 16 Gs  (00).
+        case AFS_2G:
+            accsensitivity = 2000 / 32768.0f;
+            break;
+        case AFS_4G:
+            accsensitivity = 4000 / 32768.0f;
+            break;
+        case AFS_8G:
+            accsensitivity = 8000 / 32768.0f;
+            break;
+        case AFS_16G:
+            accsensitivity = 16000 / 32768.0f;
+            break;
+    }
+
+    return accsensitivity;
+}
+
+
+float icm42688getgres(uint8_t gscale)
+{
+    float gyrosensitivity;
+
+    switch(gscale)
+    {
+        case GFS_15_125DPS:
+            gyrosensitivity = 15.125f / 32768.0f;
+            break;
+        case GFS_31_25DPS:
+            gyrosensitivity = 31.25f / 32768.0f;
+            break;
+        case GFS_62_5DPS:
+            gyrosensitivity = 62.5f / 32768.0f;
+            break;
+        case GFS_125DPS:
+            gyrosensitivity = 125.0f / 32768.0f;
+            break;
+        case GFS_250DPS:
+            gyrosensitivity = 250.0f / 32768.0f;
+            break;
+        case GFS_500DPS:
+            gyrosensitivity = 500.0f / 32768.0f;
+            break;
+        case GFS_1000DPS:
+            gyrosensitivity = 1000.0f / 32768.0f;
+            break;
+        case GFS_2000DPS:
+            gyrosensitivity = 2000.0f / 32768.0f;
+            break;
+    }
+
+    return gyrosensitivity;
+}
+
+/* Resets the imu, sets it to a default configuration. */
+static int imu_reset(FAR struct imu_dev_s *dev)
+{
+    int ret;
+    uint8_t reg_val;
+
+#ifdef CONFIG_ICM42688_SPI
+    if (dev->config.spi == NULL)
+    {
+        return -EINVAL;
     }
 #else
-  if (dev->config.i2c == NULL)
+    if (dev->config.i2c == NULL)
     {
-      return -EINVAL;
+        return -EINVAL;
     }
 #endif
 
-  nxmutex_lock(&dev->lock);
+    printf("debug imu_reset send who\n");
+    imu_lock(dev);
 
-  /* Awaken chip, issue hardware reset */
-
-  ret = __mpu_write_pwr_mgmt_1(dev, PWR_MGMT_1__DEVICE_RESET);
-  if (ret != OK)
+    /* Configure imu chip register*/
+    if (ICM42688_ID == __imu_read_who_am_i(dev))
     {
-      nxmutex_unlock(&dev->lock);
-      snerr("Could not find mpu60x0!\n");
-      return ret;
+        syslog(LOG_NOTICE, " got right icm42688\n");
+    }
+    else
+    {
+        snerr("DEBUG: got icm42688 error \n");
+        return ERROR;
     }
 
-  /* Wait for reset cycle to finish (note: per the datasheet, we don't need
-   * to hold NSS for this)
-   */
+    printf("debug imu_reset got right icm42688\n");
+    __imu_set_bank(dev, 0);
+    __imu_set_bank(dev, 0x01);
+    nxsig_usleep(100000);
 
-  do
-    {
-      nxsig_usleep(50000);            /* usecs (arbitrary) */
-    }
-  while (__mpu_read_pwr_mgmt_1(dev) & PWR_MGMT_1__DEVICE_RESET);
+    __imu_set_bank(dev, 1);
+    __imu_set_INTF_CONFIG4(dev, 0x02);
+    __imu_set_bank(dev, 0);
+    __imu_write_fifo_en(dev, 0x40); //Stream-to-FIFO Mode(page63)
 
-  /* Reset signal paths */
+    __imu_read_reg(dev, ICM42688_INT_SOURCE0, &reg_val, sizeof(reg_val));
+    __imu_write_reg(dev, ICM42688_INT_SOURCE0, 0x00, 1);
+    __imu_write_reg(dev, ICM42688_FIFO_CONFIG2, 0x00, 1);
+    __imu_write_reg(dev, ICM42688_FIFO_CONFIG3, 0x02, 1);
+    __imu_write_reg(dev, ICM42688_INT_SOURCE0, reg_val, sizeof(reg_val));
+    __imu_write_reg(dev, ICM42688_FIFO_CONFIG1, 0x63, 1); // Enable the accel and gyro to the FIFO
 
-  __mpu_write_signal_path_reset(dev, SIGNAL_PATH_RESET__ALL_RESET);
-  nxsig_usleep(2000);
+    __imu_set_bank(dev, 0);
+    __imu_write_reg(dev, ICM42688_INT_CONFIG, 0x36, 1);
+	
+    __imu_set_bank(dev, 0);
+    __imu_read_reg(dev, ICM42688_INT_SOURCE0, &reg_val, sizeof(reg_val));
+    reg_val |= (1 << 2); //FIFO_THS_INT1_ENABLE
+    __imu_write_reg(dev, ICM42688_INT_SOURCE0, reg_val, sizeof(reg_val));
 
-  /* Disable SLEEP, use PLL with z-axis clock source */
+    g_accsensitivity = icm42688getares(AFS_8G);
+    __imu_set_bank(dev, 0);
+	
+    __imu_read_reg(dev, ICM42688_ACCEL_CONFIG0, &reg_val, sizeof(reg_val));
+    reg_val |= (AFS_8G << 5);   //量程 ±8g
+    reg_val |= (AODR_50Hz);     //输出速率 50HZ
+    __imu_write_reg(dev, ICM42688_ACCEL_CONFIG0, reg_val, sizeof(reg_val));
 
-  __mpu_write_pwr_mgmt_1(dev, 3);
-  nxsig_usleep(2000);
+    g_gyrosensitivity = icm42688getgres(GFS_1000DPS);
+    __imu_set_bank(dev, 0);
+    __imu_read_reg(dev, ICM42688_GYRO_CONFIG0, &reg_val, sizeof(reg_val));
+    reg_val |= (GFS_1000DPS << 5);   //量程 ±1000dps
+    reg_val |= (GODR_50Hz);     //输出速率 50HZ
+    __imu_write_reg(dev, ICM42688_GYRO_CONFIG0, reg_val, sizeof(reg_val));
 
-  /* Disable i2c if we're on spi. */
+    __imu_set_bank(dev, 0);
+    __imu_read_reg(dev, ICM42688_PWR_MGMT0, &reg_val, sizeof(reg_val));
+    reg_val &= ~(1 << 5);//使能温度测量
+    reg_val |= ((3) << 2);//设置GYRO_MODE  0:关闭 1:待机 2:预留 3:低噪声
+    reg_val |= (3);//设置ACCEL_MODE 0:关闭 1:关闭 2:低功耗 3:低噪声
+    __imu_write_reg(dev, ICM42688_PWR_MGMT0, reg_val, sizeof(reg_val));
+    nxsig_usleep(1000);
 
-#ifdef CONFIG_MPU60X0_SPI
-  if (dev->config.spi)
-    {
-      __mpu_write_user_ctrl(dev, USER_CTRL__I2C_IF_DIS);
-    }
-#endif
-
-  /* Disable low-power mode, enable all gyros and accelerometers */
-
-  __mpu_write_pwr_mgmt_2(dev, 0);
-
-  /* default No FSYNC, set accel LPF at 184 Hz, gyro LPF at 188 Hz in
-   * menuconfig
-   */
-
-  __mpu_write_config(dev, CONFIG_MPU60X0_EXT_SYNC_SET,
-                     CONFIG_MPU60X0_DLPF_CFG);
-
-  /* default ± 1000 deg/sec in menuconfig */
-
-  __mpu_write_gyro_config(dev, CONFIG_MPU60X0_GYRO_FS_SEL);
-
-  /* default ± 8g in menuconfig */
-
-  __mpu_write_accel_config(dev, CONFIG_MPU60X0_ACCEL_AFS_SEL);
-
-  /* clear INT on any read (we aren't using that pin right now) */
-
-  __mpu_write_int_pin_cfg(dev, INT_PIN_CFG__INT_RD_CLEAR);
-
-  nxmutex_unlock(&dev->lock);
-  return 0;
+    /* Disable i2c if we're on spi. */
+    imu_unlock(dev);
+    return 0;
 }
 
 /****************************************************************************
- * Name: mpu_open
+ * Name: imu_open
  *
  * Note: we don't deal with multiple users trying to access this interface at
  * the same time. Until further notice, don't do that.
@@ -738,225 +707,160 @@ static int mpu_reset(FAR struct mpu_dev_s *dev)
  *
  ****************************************************************************/
 
-static int mpu_open(FAR struct file *filep)
+static int imu_open(FAR struct file *filep)
 {
-  FAR struct inode *inode = filep->f_inode;
-  FAR struct mpu_dev_s *dev = inode->i_private;
+    FAR struct inode *inode = filep->f_inode;
+    FAR struct imu_dev_s *dev = inode->i_private;
 
-  /* Reset the register cache */
+    /* Reset the register cache */
 
-  nxmutex_lock(&dev->lock);
-  dev->bufpos = 0;
-  nxmutex_unlock(&dev->lock);
+    imu_lock(dev);
+    dev->bufpos = 0;
+    imu_unlock(dev);
+
+    return 0;
+}
+
+/****************************************************************************
+ * Name: imu_close
+ ****************************************************************************/
+
+static int imu_close(FAR struct file *filep)
+{
+    FAR struct inode *inode = filep->f_inode;
+    FAR struct imu_dev_s *dev = inode->i_private;
+
+    /* Reset (clear) the register cache. */
+    imu_lock(dev);
+    dev->bufpos = 0;
+    imu_unlock(dev);
 
   return 0;
 }
 
-/****************************************************************************
- * Name: mpu_close
- ****************************************************************************/
-
-static int mpu_close(FAR struct file *filep)
+static ssize_t imu_read(FAR struct file *filep, FAR char *buf, size_t len)
 {
-  FAR struct inode *inode = filep->f_inode;
-  FAR struct mpu_dev_s *dev = inode->i_private;
+    FAR struct inode *inode = filep->f_inode;
+    FAR struct imu_dev_s *dev = inode->i_private;
+    size_t send_len = 0;
 
-  /* Reset (clear) the register cache. */
+    imu_lock(dev);
 
-  nxmutex_lock(&dev->lock);
-  dev->bufpos = 0;
-  nxmutex_unlock(&dev->lock);
+    /* Populate the register cache if it seems empty. */
+    if (!dev->bufpos)
+    {
+        __imu_read_imu(dev, &dev->buf);
+    }
 
-  return 0;
+    /* Send the lesser of: available bytes, or amount requested. */
+    send_len = sizeof(dev->buf) - dev->bufpos;
+    if (send_len > len)
+    {
+        send_len = len;
+    }
+
+    if (send_len)
+    {
+        memcpy(buf, ((uint8_t *)&dev->buf) + dev->bufpos, send_len);
+    }
+
+    /* Move the cursor, to mark them as sent. */
+    dev->bufpos += send_len;
+
+    /* If we've sent the last byte, reset the buffer. */
+    if (dev->bufpos >= sizeof(dev->buf))
+    {
+        dev->bufpos = 0;
+    }
+
+    imu_unlock(dev);
+
+    return send_len;
 }
 
 /****************************************************************************
- * Name: mpu_read
- *
- * Returns a snapshot of the accelerometer, temperature, and gyro registers.
- *
- * Note: the chip uses traditional, twos-complement notation, i.e. "0"
- * is encoded as 0, and full-scale-negative is 0x8000, and
- * full-scale-positive is 0x7fff. If we read the registers
- * sequentially and directly into memory (as we do), the measurements
- * from each sensor are captured as big endian words.
- *
- * In contrast, ASN.1 maps "0" to 0x8000, full-scale-negative to 0,
- * and full-scale-positive to 0xffff. So if we want to send in a
- * format that an ASN.1 PER-decoder would recognize, must:
- *
- *   1. Treat the register data/measurements as unsigned,
- *   2. Add 0x8000 to each measurement, and then,
- *   3. Send each word in big-endian order.
- *
- * The result of the above will be something you could neatly describe
- * like this (confirmed with asn1scc):
- *
- *    Sint16  ::= INTEGER(-32768..32767)
- *
- *    Mpu60x0Sample ::= SEQUENCE
- *    {
- *      accel-X  Sint16,
- *      accel-Y  Sint16,
- *      accel-Z  Sint16,
- *      temp     Sint16,
- *      gyro-X   Sint16,
- *      gyro-Y   Sint16,
- *      gyro-Z   Sint16
- *    }
- *
+ * Name: imu_write
  ****************************************************************************/
 
-static ssize_t mpu_read(FAR struct file *filep, FAR char *buf, size_t len)
-{
-  FAR struct inode *inode = filep->f_inode;
-  FAR struct mpu_dev_s *dev = inode->i_private;
-  size_t send_len = 0;
-
-  nxmutex_lock(&dev->lock);
-
-  /* Populate the register cache if it seems empty. */
-
-  if (!dev->bufpos)
-    {
-      __mpu_read_imu(dev, &dev->buf);
-    }
-
-  /* Send the lesser of: available bytes, or amount requested. */
-
-  send_len = sizeof(dev->buf) - dev->bufpos;
-  if (send_len > len)
-    {
-      send_len = len;
-    }
-
-  if (send_len)
-    {
-      memcpy(buf, ((uint8_t *)&dev->buf) + dev->bufpos, send_len);
-    }
-
-  /* Move the cursor, to mark them as sent. */
-
-  dev->bufpos += send_len;
-
-  /* If we've sent the last byte, reset the buffer. */
-
-  if (dev->bufpos >= sizeof(dev->buf))
-    {
-      dev->bufpos = 0;
-    }
-
-  nxmutex_unlock(&dev->lock);
-  return send_len;
-}
-
-/****************************************************************************
- * Name: mpu_write
- ****************************************************************************/
-
-static ssize_t mpu_write(FAR struct file *filep, FAR const char *buf,
+static ssize_t imu_write(FAR struct file *filep, FAR const char *buf,
                          size_t len)
 {
-  FAR struct inode *inode = filep->f_inode;
-  FAR struct mpu_dev_s *dev = inode->i_private;
+    FAR struct inode *inode = filep->f_inode;
+    FAR struct imu_dev_s *dev = inode->i_private;
 
-  UNUSED(inode);
-  UNUSED(dev);
-  snerr("ERROR: %p %p %zu\n", inode, dev, len);
+    UNUSED(inode);
+    UNUSED(dev);
+    snerr("ERROR: %p %p %d\n", inode, dev, len);
 
-  return len;
+    return len;
 }
 
-/****************************************************************************
- * Name: mpu60x0_seek
- ****************************************************************************/
-
-static off_t mpu_seek(FAR struct file *filep, off_t offset, int whence)
+static off_t imu_seek(FAR struct file *filep, off_t offset, int whence)
 {
-  FAR struct inode *inode = filep->f_inode;
-  FAR struct mpu_dev_s *dev = inode->i_private;
+    FAR struct inode *inode = filep->f_inode;
+    FAR struct imu_dev_s *dev = inode->i_private;
 
-  UNUSED(inode);
-  UNUSED(dev);
+    UNUSED(inode);
+    UNUSED(dev);
 
-  snerr("ERROR: %p %p\n", inode, dev);
+    snerr("ERROR: %p %p\n", inode, dev);
 
-  return 0;
+    return 0;
 }
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-/****************************************************************************
- * Name: mpu60x0_register
- *
- * Description:
- *   Registers the mpu60x0 interface as 'devpath'
- *
- * Input Parameters:
- *   devpath  - The full path to the interface to register. E.g., "/dev/imu0"
- *   spi      - SPI interface for chip communications
- *   config   - Configuration information
- *
- * Returned Value:
- *   Zero (OK) on success; a negated errno value on failure.
- *
- ****************************************************************************/
-
-int mpu60x0_register(FAR const char *path, FAR struct mpu_config_s *config)
+int icm42688_register(FAR const char *path, FAR struct imu_config_s *config)
 {
-  FAR struct mpu_dev_s *priv;
-  int ret;
+    FAR struct imu_dev_s *priv;
+    int ret;
 
-  /* Without config info, we can't do anything. */
-
-  if (config == NULL)
+    /* Without config info, we can't do anything. */
+    if (config == NULL)
     {
-      return -EINVAL;
+        return -EINVAL;
     }
 
-  /* Initialize the device structure. */
-
-  priv = (FAR struct mpu_dev_s *)kmm_malloc(sizeof(struct mpu_dev_s));
-  if (priv == NULL)
+    /* Initialize the device structure. */
+    priv = (FAR struct imu_dev_s *)kmm_malloc(sizeof(struct imu_dev_s));
+    if (priv == NULL)
     {
-      snerr("ERROR: Failed to allocate mpu60x0 device instance\n");
-      return -ENOMEM;
+        snerr("ERROR: Failed to allocate icm42688 device instance\n");
+        return -ENOMEM;
     }
 
-  memset(priv, 0, sizeof(*priv));
-  nxmutex_init(&priv->lock);
+    printf("debugimu icm42688_register_1 \n");
+    memset(priv, 0, sizeof(*priv));
+    nxmutex_init(&priv->lock);
 
-  /* Keep a copy of the config structure, in case the caller discards
-   * theirs.
-   */
+    /* Keep a copy of the config structure, in case the caller discards
+     * theirs.
+     */
+    priv->config = *config;
 
-  priv->config = *config;
-
-  /* Reset the chip, to give it an initial configuration. */
-
-  ret = mpu_reset(priv);
-  if (ret < 0)
+    /* Reset the chip, to give it an initial configuration. */
+    ret = imu_reset(priv);
+    if (ret < 0)
     {
-      snerr("ERROR: Failed to configure mpu60x0: %d\n", ret);
+        snerr("ERROR: Failed to configure icm42688: %d\n", ret);
+        printf("debugimu icm42688_register imu reset failed \n");
+        nxmutex_destroy(&priv->lock);
 
-      nxmutex_destroy(&priv->lock);
-      kmm_free(priv);
-      return ret;
+        kmm_free(priv);
+        return ret;
+    }
+    printf("debugimu icm42688_register done \n");
+    /* Register the device node. */
+    ret = register_driver(path, &g_imu_fops, 0666, priv);
+    if (ret < 0)
+    {
+        snerr("ERROR: Failed to register icm42688 interface: %d\n", ret);
+        nxmutex_destroy(&priv->lock);
+        kmm_free(priv);
+        return ret;
     }
 
-  /* Register the device node. */
-
-  ret = register_driver(path, &g_mpu_fops, 0666, priv);
-  if (ret < 0)
-    {
-      snerr("ERROR: Failed to register mpu60x0 interface: %d\n", ret);
-
-      nxmutex_destroy(&priv->lock);
-      kmm_free(priv);
-      return ret;
-    }
-
-  return OK;
+    return OK;
 }
