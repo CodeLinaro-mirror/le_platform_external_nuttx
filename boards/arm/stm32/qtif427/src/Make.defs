@@ -28,8 +28,6 @@ include $(TOPDIR)/Make.defs
 CSRCS = stm32_boot.c stm32_bringup.c
 
 
-CSRCS += stm32_gpio.c stm32_can.c
-CSRCS += stm32_adc.c
 ifeq ($(CONFIG_BOARDCTL),y)
 CSRCS += stm32_appinit.c
 endif
@@ -39,9 +37,6 @@ CSRCS += stm32_icm42688.c
 CSRCS += stm32_spi.c
 endif
 
-ifeq ($(CONFIG_CAPTURE),y)
-	CSRCS += stm32_capture.c
-endif
 
 DEPPATH += --dep-path board
 VPATH += :board
