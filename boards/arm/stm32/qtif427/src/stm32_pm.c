@@ -27,7 +27,7 @@
 
 #include "arm_internal.h"
 #include "stm32_pm.h"
-#include "omnibusf4.h"
+#include "qtif427.h"
 
 #ifdef CONFIG_PM
 

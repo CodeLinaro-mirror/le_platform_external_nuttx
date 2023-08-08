@@ -35,7 +35,7 @@
 #include "chip.h"
 #include "arm_internal.h"
 #include "stm32_pwm.h"
-#include "omnibusf4.h"
+#include "qtif427.h"
 
 /****************************************************************************
  * Pre-processor Definitions

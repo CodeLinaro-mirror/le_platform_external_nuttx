@@ -40,7 +40,7 @@
 #include "arm_internal.h"
 #include "stm32.h"
 #include "stm32_otgfs.h"
-#include "omnibusf4.h"
+#include "qtif427.h"
 
 #ifdef CONFIG_STM32_OTGFS
 

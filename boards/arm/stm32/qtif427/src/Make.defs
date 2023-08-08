@@ -26,6 +26,7 @@
 include $(TOPDIR)/Make.defs
 
 CSRCS = stm32_boot.c stm32_bringup.c
+CSRCS += stm32_ioctl.c
 
 
 ifeq ($(CONFIG_BOARDCTL),y)

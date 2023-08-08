@@ -28,7 +28,7 @@
 #include <debug.h>
 
 #include "stm32_tim.h"
-#include "omnibusf4.h"
+#include "qtif427.h"
 
 #ifdef CONFIG_TIMER
 

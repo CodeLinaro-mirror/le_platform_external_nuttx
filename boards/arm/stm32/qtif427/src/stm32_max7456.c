@@ -35,7 +35,7 @@
 
 #include "stm32_gpio.h"
 #include "stm32_spi.h"
-#include "omnibusf4.h"
+#include "qtif427.h"
 
 /****************************************************************************
  * Public Functions
