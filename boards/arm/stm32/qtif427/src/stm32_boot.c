@@ -41,15 +41,15 @@
 #include "stm32.h"
 #include "qtif427.h"
 
-/* stm32_adc.c*/
+/* stm32_adc*/
 #include <errno.h>
 #include <nuttx/analog/adc.h>
 #include "chip.h"
 
-/* stm32_can.c*/
+/* stm32_can*/
 #include <nuttx/can/can.h>
 
-/* stm32_capture.c*/
+/* stm32_capture*/
 #include <nuttx/timers/capture.h>
 #include "stm32_capture.h"
 #include "arm_internal.h"
@@ -146,7 +146,7 @@ void board_initialize(void)
 #endif
 
 
-/******************************stm32_adc.c***********************************/
+/******************************stm32_adc***********************************/
 
 
 #ifdef CONFIG_ADC
@@ -225,7 +225,7 @@ int stm32_adc_setup(void)
 #endif /* CONFIG_STM32_ADC1 || CONFIG_STM32_ADC2 || CONFIG_STM32_ADC3 */
 #endif /* CONFIG_ADC */
 
-/**********************************stm32_can.c*******************************
+/**********************************stm32_can*******************************
  *
  *
  **/
@@ -313,7 +313,7 @@ int stm32_can_setup(void)
 
 
 
-/*************************************stm32_capture.c**************************
+/*************************************stm32_capture**************************
  *
  *
  * */

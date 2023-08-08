@@ -36,7 +36,7 @@
 #include "stm32.h"
 
 #include <arch/board/board.h>
-#include "omnibusf4.h"
+#include "qtif427.h"
 
 /****************************************************************************
  * Pre-processor Definitions

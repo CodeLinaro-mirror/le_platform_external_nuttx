@@ -30,10 +30,8 @@
 
 #include <nuttx/board.h>
 
-#include "omnibusf4.h"
 
-
-/*stm32_gpio.c*/
+/*stm32_gpio*/
 #include <stdbool.h>
 #include <assert.h>
 #include <debug.h>
@@ -92,7 +90,7 @@ int board_ioctl(unsigned int cmd, uintptr_t arg)
 
 
 
-/***********************************stm32_gpio.c*****************************/
+/***********************************stm32_gpio*****************************/
 
 #if defined(CONFIG_DEV_GPIO)
 //&& !defined(CONFIG_GPIO_LOWER_HALF)

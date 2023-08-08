@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/arm/stm32/axoloti/src/stm32_boot.c
+ * boards/arm/stm32/omnibusf4/src/stm32_boot.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with

@@ -39,7 +39,7 @@
 #include "stm32_rcc.h"
 #include "stm32_exti.h"
 
-#include "omnibusf4.h"
+#include "qtif427.h"
 
 /****************************************************************************
  * Pre-processor Definitions
