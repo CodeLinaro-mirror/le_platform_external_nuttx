@@ -24,6 +24,7 @@
 
 #include <nuttx/config.h>
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <inttypes.h>
 #include <stdint.h>
@@ -46,6 +47,7 @@
 #include "chip.h"
 #include "arm_internal.h"
 #include "stm32_otghs.h"
+#include "stm32_rcc.h"
 
 #if defined(CONFIG_USBDEV) && (defined(CONFIG_STM32_OTGHS))
 
@@ -226,10 +228,6 @@
 
 /* Endpoints ****************************************************************/
 
-/* Number of endpoints */
-
-#define STM32_NENDPOINTS             (4)          /* ep0-3 x 2 for IN and OUT */
-
 /* Odd physical endpoint numbers are IN; even are OUT */
 
 #define STM32_EPPHYIN2LOG(epphy)     ((uint8_t)(epphy)|USB_DIR_IN)
@@ -256,16 +254,6 @@
 
 #define stm32_rqempty(ep)            ((ep)->head == NULL)
 #define stm32_rqpeek(ep)             ((ep)->head)
-
-/* Standard stuff ***********************************************************/
-
-#ifndef MIN
-#  define MIN(a,b) ((a) < (b) ? (a) : (b))
-#endif
-
-#ifndef MAX
-#  define MAX(a,b) ((a) > (b) ? (a) : (b))
-#endif
 
 /****************************************************************************
  * Private Types
@@ -1529,8 +1517,8 @@ static inline void stm32_ep0out_receive(struct stm32_ep_s *privep,
 
   /* Sanity Checking */
 
-  DEBUGASSERT(privep && privep->ep.priv);
-  priv = (struct stm32_usbdev_s *)privep->ep.priv;
+  DEBUGASSERT(privep && privep->dev);
+  priv = (struct stm32_usbdev_s *)privep->dev;
 
   uinfo("EP0: bcnt=%d\n", bcnt);
   usbtrace(TRACE_READ(EP0), bcnt);
@@ -5146,9 +5134,6 @@ static void stm32_swinitialize(struct stm32_usbdev_s *priv)
 
   priv->epavail[0] = STM32_EP_AVAILABLE;
   priv->epavail[1] = STM32_EP_AVAILABLE;
-
-  priv->epin[EP0].ep.priv  = priv;
-  priv->epout[EP0].ep.priv = priv;
 
   /* Initialize the endpoint lists */
 

@@ -126,7 +126,7 @@ static int work_thread(int argc, FAR char *argv[])
 {
   FAR struct kwork_wqueue_s *wqueue;
   FAR struct work_s *work;
-  worker_t  worker;
+  worker_t worker;
   irqstate_t flags;
   FAR void *arg;
 
@@ -153,9 +153,13 @@ static int work_thread(int argc, FAR char *argv[])
 
       /* Remove the ready-to-execute work from the list */
 
-      work = (FAR struct work_s *)dq_remfirst(&wqueue->q);
-      if (work && work->worker)
+      while ((work = (FAR struct work_s *)dq_remfirst(&wqueue->q)) != NULL)
         {
+          if (work->worker == NULL)
+            {
+              continue;
+            }
+
           /* Extract the work description from the entry (in case the work
            * instance will be re-used after it has been de-queued).
            */

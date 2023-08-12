@@ -113,10 +113,6 @@ static const struct file_operations g_zcops =
   zc_write,  /* write */
   NULL,      /* seek */
   zc_ioctl,  /* ioctl */
-  NULL       /* poll */
-#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
-  , NULL     /* unlink */
-#endif
 };
 
 volatile int sample = 0;
@@ -428,7 +424,7 @@ static int zc_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
               /* Save the notification events */
 
               opriv->do_event = *event;
-              opriv->do_pid   = getpid();
+              opriv->do_pid   = nxsched_getpid();
 
               /* Enable/disable interrupt handling */
 

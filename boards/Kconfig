@@ -12,16 +12,21 @@ choice
 		be available for selection.  Use ARCH_BOARD_CUSTOM to create a new
 		board configuration.
 
-	select ARCH_HAVE_POWEROFF
-	---help---
-		none
-
-config ARCH_BOARD_QTICARF4
-        bool "QTICARF4 car controller"
-        depends on ARCH_CHIP_STM32F405RG
+config ARCH_BOARD_QTIF427
+        bool "QTIF427 robot controller"
+        depends on ARCH_CHIP_STM32F427V
         select ARCH_HAVE_LEDS
         ---help---
-                4 wheel ackerman car controller
+                robot reference platform board for AMR
+
+config ARCH_BOARD_QTIAMRBOOT
+         bool "qtif427 bootloader"
+         depends on ARCH_CHIP_STM32F427V
+         select ARCH_HAVE_LEDS
+          ---help---
+                  robot reference platform board bootloader
+
+
 
 endchoice
 
@@ -83,7 +88,8 @@ endif #ARCH_BOARD_CUSTOM
 
 config ARCH_BOARD
 	string
-	default "qticarf4"                if ARCH_BOARD_QTICARF4
+	default "qtif427"                if ARCH_BOARD_QTIF427
+        default "qtiamrboot"               if ARCH_BOARD_QTIAMRBOOT
 
 comment "Common Board Options"
 
@@ -128,8 +134,11 @@ config ARCH_IRQBUTTONS
 
 comment "Board-Specific Options"
 
-if ARCH_BOARD_QTICARF4
-source "boards/arm/stm32/qticarf4/Kconfig"
+if ARCH_BOARD_QTIF427
+source "boards/arm/stm32/qtif427/Kconfig"
+endif
+if ARCH_BOARD_QTIAMRBOOT
+source "boards/arm/stm32/qtiamrboot/Kconfig"
 endif
 if ARCH_BOARD_CUSTOM
 source "boards/dummy/Kconfig"

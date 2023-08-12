@@ -38,7 +38,6 @@
 #include <nuttx/arch.h>
 #include <nuttx/irq.h>
 #include <nuttx/wqueue.h>
-#include <nuttx/net/arp.h>
 #include <nuttx/net/netdev.h>
 #include <nuttx/wireless/wireless.h>
 #include <nuttx/wireless/ieee80211/bcmf_board.h>
@@ -156,7 +155,7 @@ int bcmf_netdev_alloc_tx_frame(FAR struct bcmf_dev_s *priv)
                                                MAX_NETDEV_PKTSIZE, false);
   if (!priv->cur_tx_frame)
     {
-      wlerr("ERROR: Cannot allocate TX frame\n");
+      wlinfo("INFO: Cannot allocate TX frame\n");
       return -ENOMEM;
     }
 

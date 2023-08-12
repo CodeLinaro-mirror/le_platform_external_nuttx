@@ -24,6 +24,7 @@
 
 #include <nuttx/config.h>
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -83,7 +84,6 @@
  * endpoint register sets there are.
  */
 
-#define STM32_NENDPOINTS      (8)
 #define EP0                   (0)
 #define EP1                   (1)
 #define EP2                   (2)
@@ -212,16 +212,6 @@
 #define STM32_TRACEINTID_WKUP               0x001e
 #define STM32_TRACEINTID_EP0SETUPOUT        0x001f
 #define STM32_TRACEINTID_EP0SETUPOUTDATA    0x0020
-
-/* Ever-present MIN and MAX macros */
-
-#ifndef MIN
-#  define MIN(a,b) (a < b ? a : b)
-#endif
-
-#ifndef MAX
-#  define MAX(a,b) (a > b ? a : b)
-#endif
 
 /* Byte ordering in host-based values */
 

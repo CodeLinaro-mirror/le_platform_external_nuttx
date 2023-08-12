@@ -476,7 +476,7 @@ static int stm32_getfreq(struct cap_lowerhalf_s *lower, uint32_t *freq)
  * Name: stm32_chchannel
  *
  * Description:
- *   change stm32 timer channel for capture 
+ *   change stm32 timer channel for capture
  *
  * Input Parameters:
  *   lower - A pointer the publicly visible representation of the
@@ -517,7 +517,7 @@ static int stm32_chchannel(struct cap_lowerhalf_s *lower, uint32_t *channel)
 
   /* modify the current channel */
   memcpy(&priv->channel, channel, sizeof(uint32_t));
-  
+
   /* restart current capture */
   return stm32_start(lower);
 }
@@ -551,7 +551,7 @@ struct cap_lowerhalf_s *stm32_cap_initialize(int timer)
     {
 #ifdef CONFIG_STM32_TIM1_CAP
       case 1:
-            lower = &g_cap1_lowerhalf;
+        lower = &g_cap1_lowerhalf;
         break;
 #endif
 #ifdef CONFIG_STM32_TIM2_CAP

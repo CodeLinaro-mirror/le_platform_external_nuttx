@@ -338,9 +338,6 @@ static const struct file_operations g_mx7_fops =
   NULL,          /* seek */
   NULL,          /* ioctl */
   NULL           /* poll */
-#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
-  , NULL         /* unlink */
-#endif
 };
 
 #if defined(DEBUG)
@@ -353,12 +350,6 @@ static const struct file_operations g_mx7_debug_fops =
   NULL,                /* close */
   mx7_debug_read,      /* read */
   mx7_debug_write,     /* write */
-  NULL,                /* seek */
-  NULL,                /* ioctl */
-  NULL                 /* poll */
-#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
-  , NULL               /* unlink */
-#endif
 };
 #endif
 
@@ -1555,7 +1546,7 @@ static int add_interface(FAR const char *path,
 
   /* Start with calling @path the interface name. */
 
-  strcpy(buf, path);
+  strlcpy(buf, path, sizeof(buf));
 
   /* Is the interface actually in a directory named @path? */
 

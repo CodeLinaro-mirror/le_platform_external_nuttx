@@ -69,6 +69,12 @@ struct epoll_head_s
                                    * these epoll node should be setup again
                                    * to check the pending poll notification.
                                    */
+  struct list_node      oneshot;  /* The oneshot list, store all the epoll
+                                   * node notified after epoll_wait and with
+                                   * EPOLLONESHOT events, these oneshot epoll
+                                   * nodes can be reset by epoll_ctl (Move
+                                   * from oneshot list to the setup list).
+                                   */
   struct list_node      free;     /* The free list, store all the freed epoll
                                    * node.
                                    */
@@ -104,10 +110,9 @@ static const struct file_operations g_epoll_ops =
   NULL,             /* write */
   NULL,             /* seek */
   NULL,             /* ioctl */
+  NULL,             /* mmap */
+  NULL,             /* truncate */
   epoll_do_poll     /* poll */
-#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
-  , NULL            /* unlink */
-#endif
 };
 
 static struct inode g_epoll_inode =
@@ -192,6 +197,7 @@ static int epoll_do_close(FAR struct file *filep)
 
       list_for_every_entry_safe(&eph->extend, epn, tmp, epoll_node_t, node)
         {
+          list_delete(&epn->node);
           kmm_free(epn);
         }
 
@@ -232,6 +238,7 @@ static int epoll_do_create(int size, int flags)
 
   list_initialize(&eph->setup);
   list_initialize(&eph->teardown);
+  list_initialize(&eph->oneshot);
   list_initialize(&eph->extend);
   list_initialize(&eph->free);
   for (i = 0; i < size; i++)
@@ -307,7 +314,7 @@ static int epoll_teardown(FAR epoll_head_t *eph, FAR struct epoll_event *evs,
           list_delete(&epn->node);
           if ((epn->pfd.events & EPOLLONESHOT) != 0)
             {
-              list_add_tail(&eph->free, &epn->node);
+              list_add_tail(&eph->oneshot, &epn->node);
             }
           else
             {
@@ -428,6 +435,15 @@ int epoll_ctl(int epfd, int op, int fd, FAR struct epoll_event *ev)
               }
           }
 
+        list_for_every_entry(&eph->oneshot, epn, epoll_node_t, node)
+          {
+            if (epn->pfd.fd == fd)
+              {
+                ret = -EEXIST;
+                goto err;
+              }
+          }
+
         if (list_is_empty(&eph->free))
           {
             /* Malloc new epoll node, insert the first list_node to the
@@ -453,7 +469,7 @@ int epoll_ctl(int epfd, int op, int fd, FAR struct epoll_event *ev)
             eph->size += eph->size;
           }
 
-        epn = list_remove_head_type(&eph->free, epoll_node_t, node);
+        epn = container_of(list_remove_head(&eph->free), epoll_node_t, node);
         epn->data        = ev->data;
         epn->pfd.events  = ev->events;
         epn->pfd.fd      = fd;
@@ -485,6 +501,16 @@ int epoll_ctl(int epfd, int op, int fd, FAR struct epoll_event *ev)
           }
 
         list_for_every_entry(&eph->teardown, epn, epoll_node_t, node)
+          {
+            if (epn->pfd.fd == fd)
+              {
+                list_delete(&epn->node);
+                list_add_tail(&eph->free, &epn->node);
+                goto out;
+              }
+          }
+
+        list_for_every_entry(&eph->oneshot, epn, epoll_node_t, node)
           {
             if (epn->pfd.fd == fd)
               {
@@ -543,6 +569,27 @@ int epoll_ctl(int epfd, int op, int fd, FAR struct epoll_event *ev)
                     list_add_tail(&eph->setup, &epn->node);
                   }
 
+                goto out;
+              }
+          }
+
+        list_for_every_entry(&eph->oneshot, epn, epoll_node_t, node)
+          {
+            if (epn->pfd.fd == fd)
+              {
+                epn->data        = ev->data;
+                epn->pfd.events  = ev->events;
+                epn->pfd.fd      = fd;
+                epn->pfd.revents = 0;
+
+                ret = poll_fdsetup(fd, &epn->pfd, true);
+                if (ret < 0)
+                  {
+                    goto err;
+                  }
+
+                list_delete(&epn->node);
+                list_add_tail(&eph->setup, &epn->node);
                 break;
               }
           }

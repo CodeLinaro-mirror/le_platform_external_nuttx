@@ -217,6 +217,14 @@ struct lib_rawsostream_s
   int                    fd;
 };
 
+struct lib_bufferedoutstream_s
+{
+  struct lib_outstream_s      public;
+  FAR struct lib_outstream_s *backend;
+  int                         pending;
+  char                        buffer[CONFIG_STREAM_OUT_BUFFER_SIZE];
+};
+
 /* This is a special stream that does buffered character I/O.  NOTE that is
  * CONFIG_SYSLOG_BUFFER is not defined, it is the same as struct
  * lib_outstream_s
@@ -230,6 +238,7 @@ struct lib_syslogstream_s
 #ifdef CONFIG_SYSLOG_BUFFER
   FAR struct iob_s *iob;
 #endif
+  int last_ch;
 };
 
 /* LZF compressed stream pipeline */
@@ -370,6 +379,26 @@ void lib_rawinstream(FAR struct lib_rawinstream_s *instream, int fd);
 void lib_rawoutstream(FAR struct lib_rawoutstream_s *outstream, int fd);
 void lib_rawsistream(FAR struct lib_rawsistream_s *instream, int fd);
 void lib_rawsostream(FAR struct lib_rawsostream_s *outstream, int fd);
+
+/****************************************************************************
+ * Name: lib_bufferedoutstream
+ *
+ * Description:
+ *   Wrap a raw output stream to a buffered output stream.
+ *
+ * Input Parameters:
+ *   outstream - User allocated, uninitialized instance of struct
+ *               lib_bufferedoutstream_s to be initialized.
+ *   backend   - User allocated, initialized instance of struct
+ *               lib_outstream_s to be buffered.
+ *
+ * Returned Value:
+ *   None (User allocated instance initialized).
+ *
+ ****************************************************************************/
+
+void lib_bufferedoutstream(FAR struct lib_bufferedoutstream_s *outstream,
+                           FAR struct lib_outstream_s *backend);
 
 /****************************************************************************
  * Name: lib_lowoutstream
@@ -600,7 +629,7 @@ int lib_snoflush(FAR struct lib_sostream_s *this);
  ****************************************************************************/
 
 int lib_sprintf(FAR struct lib_outstream_s *obj,
-                FAR const IPTR char *fmt, ...) printflike(2, 3);
+                FAR const IPTR char *fmt, ...) printf_like(2, 3);
 
 /****************************************************************************
  * Name: lib_vsprintf
@@ -612,7 +641,7 @@ int lib_sprintf(FAR struct lib_outstream_s *obj,
  ****************************************************************************/
 
 int lib_vsprintf(FAR struct lib_outstream_s *obj,
-                 FAR const IPTR char *src, va_list ap) printflike(2, 0);
+                 FAR const IPTR char *src, va_list ap) printf_like(2, 0);
 
 /****************************************************************************
  * Name: lib_vscanf
@@ -624,7 +653,7 @@ int lib_vsprintf(FAR struct lib_outstream_s *obj,
  ****************************************************************************/
 
 int lib_vscanf(FAR struct lib_instream_s *obj, FAR int *lastc,
-               FAR const IPTR char *src, va_list ap) scanflike(3, 0);
+               FAR const IPTR char *src, va_list ap) scanf_like(3, 0);
 
 #undef EXTERN
 #if defined(__cplusplus)

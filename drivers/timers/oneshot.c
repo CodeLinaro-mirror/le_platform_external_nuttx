@@ -83,10 +83,6 @@ static const struct file_operations g_oneshot_ops =
   oneshot_write, /* write */
   NULL,          /* seek */
   oneshot_ioctl, /* ioctl */
-  NULL           /* poll */
-#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
-  , NULL         /* unlink */
-#endif
 };
 
 /****************************************************************************
@@ -213,7 +209,7 @@ static int oneshot_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
           pid = start->pid;
           if (pid == 0)
             {
-              pid = getpid();
+              pid = nxsched_getpid();
             }
 
           priv->od_pid = pid;

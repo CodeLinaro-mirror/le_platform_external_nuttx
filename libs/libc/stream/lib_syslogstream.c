@@ -22,10 +22,9 @@
  * Included Files
  ****************************************************************************/
 
-#include <nuttx/config.h>
-
 #include <assert.h>
 #include <errno.h>
+#include <stddef.h>
 
 #include <nuttx/mm/iob.h>
 #include <nuttx/streams.h>
@@ -103,6 +102,37 @@ static void syslogstream_addchar(FAR struct lib_syslogstream_s *stream,
       syslogstream_flush(stream);
     }
 }
+
+static int syslogstream_addstring(FAR struct lib_syslogstream_s *stream,
+                                  FAR const char *buff, int len)
+{
+  FAR struct iob_s *iob = stream->iob;
+  int ret = 0;
+
+  do
+    {
+      int remain = CONFIG_IOB_BUFSIZE - iob->io_len;
+      remain = remain > len - ret ? len - ret : remain;
+      memcpy(iob->io_data + iob->io_len, buff + ret, remain);
+      iob->io_len += remain;
+      ret += remain;
+
+      /* Is the buffer enough? */
+
+      if (iob->io_len >= CONFIG_IOB_BUFSIZE)
+        {
+          /* Yes.. then flush the buffer */
+
+          syslogstream_flush(stream);
+        }
+    }
+  while (ret < len);
+
+  /* Increment the total number of bytes buffered. */
+
+  stream->public.nput += len;
+  return len;
+}
 #endif
 
 /****************************************************************************
@@ -111,16 +141,17 @@ static void syslogstream_addchar(FAR struct lib_syslogstream_s *stream,
 
 static void syslogstream_putc(FAR struct lib_outstream_s *this, int ch)
 {
+  FAR struct lib_syslogstream_s *stream =
+                                      (FAR struct lib_syslogstream_s *)this;
+
+  DEBUGASSERT(stream != NULL);
+  stream->last_ch = ch;
+
   /* Discard carriage returns */
 
   if (ch != '\r')
     {
 #ifdef CONFIG_SYSLOG_BUFFER
-      FAR struct lib_syslogstream_s *stream =
-        (FAR struct lib_syslogstream_s *)this;
-
-      DEBUGASSERT(stream != NULL);
-
       /* Do we have an IO buffer? */
 
       if (stream->iob != NULL)
@@ -161,6 +192,61 @@ static void syslogstream_putc(FAR struct lib_outstream_s *this, int ch)
     }
 }
 
+static int syslogstream_puts(FAR struct lib_outstream_s *this,
+                             FAR const void *buff, int len)
+{
+  FAR struct lib_syslogstream_s *stream =
+                                      (FAR struct lib_syslogstream_s *)this;
+  int ret;
+
+  DEBUGASSERT(stream != NULL);
+  if (len <= 0)
+    {
+      return 0;
+    }
+
+  stream->last_ch = ((FAR const char *)buff)[len - 1];
+
+#ifdef CONFIG_SYSLOG_BUFFER
+  /* Do we have an IO buffer? */
+
+  if (stream->iob != NULL)
+    {
+      /* Add the incoming string to the buffer */
+
+      ret = syslogstream_addstring(stream, buff, len);
+    }
+  else
+#endif
+    {
+      /* Try writing until the write was successful or until an
+       * irrecoverable error occurs.
+       */
+
+      do
+        {
+          /* Write the buffer to the supported logging device.  On
+           * failure, syslog_write returns a negated errno value.
+           */
+
+          ret = syslog_write(buff, len);
+          if (ret >= 0)
+            {
+              this->nput += ret;
+              return ret;
+            }
+
+          /* The special return value -EINTR means that syslog_putc() was
+           * awakened by a signal.  This is not a real error and must be
+           * ignored in this context.
+           */
+        }
+      while (ret == -EINTR);
+    }
+
+  return ret;
+}
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -183,32 +269,19 @@ static void syslogstream_putc(FAR struct lib_outstream_s *this, int ch)
 
 void lib_syslogstream_open(FAR struct lib_syslogstream_s *stream)
 {
-#ifdef CONFIG_SYSLOG_BUFFER
-  FAR struct iob_s *iob;
-#endif
-
   DEBUGASSERT(stream != NULL);
 
   /* Initialize the common fields */
 
   stream->public.putc  = syslogstream_putc;
+  stream->public.puts  = syslogstream_puts;
   stream->public.flush = lib_noflush;
   stream->public.nput  = 0;
 
 #ifdef CONFIG_SYSLOG_BUFFER
   /* Allocate an IOB */
 
-  iob                  = iob_tryalloc(true);
-  stream->iob          = iob;
-
-  if (iob != NULL)
-    {
-      /* Initialize the IOB */
-
-      iob->io_len      = 0;
-      iob->io_offset   = 0;
-      iob->io_pktlen   = 0;
-    }
+  stream->iob = iob_tryalloc(true);
 #endif
 }
 

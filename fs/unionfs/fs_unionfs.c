@@ -24,6 +24,7 @@
 
 #include <nuttx/config.h>
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/statfs.h>
 #include <sys/stat.h>
@@ -48,15 +49,6 @@
 #include "inode/inode.h"
 
 #if !defined(CONFIG_DISABLE_MOUNTPOINT) && defined(CONFIG_FS_UNIONFS)
-
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-#undef MIN
-#undef MAX
-#define MIN(a,b) (((a) < (b)) ? (a) : (b))
-#define MAX(a,b) (((a) > (b)) ? (a) : (b))
 
 /****************************************************************************
  * Private Types
@@ -222,12 +214,13 @@ const struct mountpt_operations unionfs_operations =
   unionfs_write,       /* write */
   unionfs_seek,        /* seek */
   unionfs_ioctl,       /* ioctl */
+  NULL,                /* mmap */
+  unionfs_truncate,    /* truncate */
 
   unionfs_sync,        /* sync */
   unionfs_dup,         /* dup */
   unionfs_fstat,       /* fstat */
   unionfs_fchstat,     /* fchstat */
-  unionfs_truncate,    /* truncate */
 
   unionfs_opendir,     /* opendir */
   unionfs_closedir,    /* closedir */
