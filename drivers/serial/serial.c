@@ -874,50 +874,6 @@ static ssize_t uart_read(FAR struct file *filep,
           *buffer++ = ch;
           recvd++;
 
-          if (dev->tc_lflag & ECHO)
-            {
-              /* Check for the beginning of a VT100 escape sequence, 3 byte */
-
-              if (ch == ASCII_ESC)
-                {
-                  /* Mark that we should skip 2 more bytes */
-
-                  dev->escape = 2;
-                  continue;
-                }
-              else if (dev->escape == 2 && ch != ASCII_LBRACKET)
-                {
-                  /* It's not an <esc>[x 3 byte sequence, show it */
-
-                  dev->escape = 0;
-                }
-
-              /* Echo if the character is not a control byte */
-
-              if ((!iscntrl(ch & 0xff) || (ch == '\n')) && dev->escape == 0)
-                {
-                  if (ch == '\n')
-                    {
-                      uart_putxmitchar(dev, '\r', true);
-                    }
-
-                  uart_putxmitchar(dev, ch, true);
-
-                  /* Mark the tx buffer have echoed content here,
-                   * to avoid the tx buffer is empty such as special escape
-                   * sequence received, but enable the tx interrupt.
-                   */
-
-                  echoed = true;
-                }
-
-              /* Skipping character count down */
-
-              if (dev->escape > 0)
-                {
-                  dev->escape--;
-                }
-            }
         }
 
 #ifdef CONFIG_DEV_SERIAL_FULLBLOCKS
