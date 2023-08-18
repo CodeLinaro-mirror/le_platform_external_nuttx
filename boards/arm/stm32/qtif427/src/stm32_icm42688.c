@@ -28,7 +28,7 @@
 
 
 #define DEVNODE_ICM42688   "/dev/icm"
-#define MPU_SLAVE_ADDR      0x68
+#define IMU_SLAVE_ADDR      0x68
 #define SPIPORT_ICM42688   3
 #define SPIMINOR_ICM42688  0
 
@@ -52,7 +52,7 @@ int stm32_icm42688_initialize(void)
 
 //   stm32_configgpio(GPIO_CS_ICM42688);
 
-  struct mpu_config_s config =
+  struct imu_config_s config =
   {
     .spi_devid = minor,
   };
