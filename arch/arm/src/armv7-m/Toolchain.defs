@@ -57,7 +57,6 @@ ifeq ($(CONFIG_ARCH_FPU),y)
   endif
 else
   LLVM_ABITYPE 		 := eabi
-  TOOLCHAIN_MFLOAT += -mfloat-abi=soft
 endif
 
 ifeq ($(CONFIG_ARCH_CORTEXM3),y)
