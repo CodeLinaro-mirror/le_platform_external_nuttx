@@ -145,6 +145,15 @@ void board_initialize(void)
 }
 #endif
 
+#ifdef CONFIG_BOARD_LATE_INITIALIZE
+void board_late_initialize(void)
+{
+  /* Perform board-specific initialization */
+
+  stm32_bringup();
+}
+#endif
+
 
 /******************************stm32_adc***********************************/
 
