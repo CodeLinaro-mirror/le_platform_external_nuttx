@@ -149,6 +149,18 @@
 #define BOARD_TIM6_FREQUENCY    (STM32_HCLK_FREQUENCY / 2)
 #define BOARD_TIM7_FREQUENCY    (STM32_HCLK_FREQUENCY / 2)
 #define BOARD_TIM8_FREQUENCY    STM32_HCLK_FREQUENCY
+#define BOARD_TIM9_FREQUENCY    STM32_HCLK_FREQUENCY
+
+/*******RC timer***********/
+#ifdef CONFIG_STM32_TIM1
+#define GPIO_TIM1_CH1IN  GPIO_TIM1_CH1IN_2
+#define GPIO_TIM1_CH2IN  GPIO_TIM1_CH2IN_2
+
+#endif
+#ifdef CONFIG_STM32_TIM9
+#define GPIO_TIM9_CH1IN  GPIO_TIM9_CH1IN_2
+#define GPIO_TIM9_CH2IN  GPIO_TIM9_CH2IN_2
+#endif
 
 /* Pin configurations *******************************************************/
 
