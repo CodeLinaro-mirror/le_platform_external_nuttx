@@ -158,5 +158,7 @@ printf("stm32_gpio_initialize done \n");
   }
   syslog(LOG_INFO, "ADC  have initialized\n");
 #endif
+
+  setlogmask(LOG_UPTO(LOG_INFO));
   return ret;
 }
