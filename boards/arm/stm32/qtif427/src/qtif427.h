@@ -91,5 +91,7 @@ int stm32_adc_setup(void);
 int stm32_capture_setup(void);
 #endif
 
+void weak_function stm32_spidev_initialize(void);
+
 #endif /* __ASSEMBLY__ */
 #endif /* __BOARDS_ARM_STM32_QCOMF427_SRC_QTIF427_H */

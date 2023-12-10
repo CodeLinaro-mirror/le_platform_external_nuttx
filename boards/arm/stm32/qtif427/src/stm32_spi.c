@@ -100,8 +100,6 @@ void stm32_spi3select(FAR struct spi_dev_s *dev, uint32_t devid,
   /* Note: NSS is active-low. */
   /* Note: CS is active-low. */
   stm32_gpiowrite(GPIO_CS_ICM42688, !selected);
-
-printf("spi3 selected: %d, cs pin=%d \n ",selected,stm32_gpioread(GPIO_CS_ICM42688));
 }
 
 uint8_t stm32_spi3status(FAR struct spi_dev_s *dev, uint32_t devid)
