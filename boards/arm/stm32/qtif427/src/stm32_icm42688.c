@@ -39,7 +39,6 @@ int stm32_icm42688_initialize(void)
 {
   int port = SPIPORT_ICM42688;
   int minor = SPIMINOR_ICM42688;
-  int cs = GPIO_CS_ICM42688;
 
 /* init cs gpio  */
 /*
