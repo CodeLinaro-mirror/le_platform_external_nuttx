@@ -41,6 +41,8 @@
 
 /* Configuration ************************************************************/
 
+#define HAVE_RTC_DRIVER 1
+
 /* procfs File System */
 
 #ifdef CONFIG_FS_PROCFS

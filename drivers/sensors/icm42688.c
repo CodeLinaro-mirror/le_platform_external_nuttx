@@ -563,7 +563,7 @@ static float icm42688getares(uint8_t ascale)
 
 float icm42688getgres(uint8_t gscale)
 {
-    float gyrosensitivity;
+    float gyrosensitivity = 0;
 
     switch(gscale)
     {
@@ -599,7 +599,6 @@ float icm42688getgres(uint8_t gscale)
 /* Resets the imu, sets it to a default configuration. */
 static int imu_reset(FAR struct imu_dev_s *dev)
 {
-    int ret;
     uint8_t reg_val;
 
 #ifdef CONFIG_ICM42688_SPI
@@ -724,15 +723,15 @@ static ssize_t imu_read(FAR struct file *filep, FAR char *buf, size_t len)
     FAR struct inode *inode = filep->f_inode;
     FAR struct imu_dev_s *dev = inode->i_private;
     size_t send_len = 0;
-	FAR uint8_t data[14];
+    FAR uint8_t data[14];
 
     imu_lock(dev);
 
-	send_len = __imu_read_reg(dev, ICM42688_TEMP_DATA1, &data, sizeof(data));
+	send_len = __imu_read_reg(dev, ICM42688_TEMP_DATA1, data, sizeof(data));
 
 	if ( send_len )
 	{
-		memcpy(buf, &data, send_len);
+		memcpy(buf, data, send_len);
 	}
 
     # if 0
