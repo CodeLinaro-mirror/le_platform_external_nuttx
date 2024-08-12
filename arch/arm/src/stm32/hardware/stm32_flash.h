@@ -169,7 +169,7 @@
                                       _K(128), _K(128), _K(128), _K(128)}
 
 #    elif defined(CONFIG_STM32_FLASH_CONFIG_I) && defined(CONFIG_STM32_STM32F4XXX)
-#      define STM32_FLASH_NPAGES      10
+#      define STM32_FLASH_NPAGES      24
 #      define STM32_FLASH_SIZE        (_K(24 * 16))
 #      define STM32_FLASH_SIZES       {_K(16), _K(16), _K(16), _K(16),      \
                                       _K(16), _K(16), _K(16), _K(16),    \
