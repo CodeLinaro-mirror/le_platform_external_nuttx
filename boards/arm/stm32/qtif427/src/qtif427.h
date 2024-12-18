@@ -41,6 +41,8 @@
 
 /* Configuration ************************************************************/
 
+#define HAVE_RTC_DRIVER 1
+
 /* procfs File System */
 
 #ifdef CONFIG_FS_PROCFS
@@ -90,6 +92,8 @@ int stm32_adc_setup(void);
 #ifdef CONFIG_CAPTURE
 int stm32_capture_setup(void);
 #endif
+
+void weak_function stm32_spidev_initialize(void);
 
 #endif /* __ASSEMBLY__ */
 #endif /* __BOARDS_ARM_STM32_QCOMF427_SRC_QTIF427_H */

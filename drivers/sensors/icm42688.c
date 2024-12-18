@@ -325,7 +325,7 @@ static int __imu_read_reg_spi(FAR struct imu_dev_s *dev,
     }
 
     /* Deselect the chip, release the SPI master. */
-    SPI_SELECT(spi, id, true);
+    SPI_SELECT(spi, id, false);
     SPI_LOCK(spi, false);
 
     return ret;
@@ -497,31 +497,19 @@ static inline int __imu_write_reg(FAR struct imu_dev_s *dev,
     return -ENODEV;
 }
 
-/* set register  */
+/****************************************************************************
+ * wrapper APIs
+ ****************************************************************************/
+static inline int __imu_write_imu(FAR struct imu_dev_s *dev,
+									  enum imu_regaddr_e reg_addr, uint8_t val)
+{
+    return __imu_write_reg(dev, reg_addr, &val, sizeof(val));
+}
 
-/* read temp & imu xyz accs & gryos */
 static inline int __imu_read_imu(FAR struct imu_dev_s *dev,
-                                 FAR struct sensor_data_s *buf)
+									 enum imu_regaddr_e reg_addr, FAR uint8_t *buf)
 {
-    return __imu_read_reg(dev, ICM42688_TEMP_DATA1, (uint8_t *) buf, sizeof(*buf));
-}
-
-static inline int __imu_set_bank(FAR struct imu_dev_s *dev,
-                                                uint8_t val)
-{
-    return __imu_write_reg(dev, ICM42688_REG_BANK_SEL, &val, sizeof(val));
-}
-
-static inline int __imu_set_INTF_CONFIG4(FAR struct imu_dev_s *dev,
-                                                uint8_t val)
-{
-    return __imu_write_reg(dev, ICM42688_INTF_CONFIG4, &val, sizeof(val));
-}
-
-static inline int __imu_write_fifo_en(FAR struct imu_dev_s *dev,
-                                        uint8_t val)
-{
-    return __imu_write_reg(dev, ICM42688_FIFO_CONFIG, &val, sizeof(val));
+    return __imu_read_reg(dev, reg_addr, (uint8_t *) buf, sizeof(*buf));
 }
 
 static inline uint8_t __imu_read_who_am_i(FAR struct imu_dev_s *dev)
@@ -575,7 +563,7 @@ static float icm42688getares(uint8_t ascale)
 
 float icm42688getgres(uint8_t gscale)
 {
-    float gyrosensitivity;
+    float gyrosensitivity = 0;
 
     switch(gscale)
     {
@@ -611,7 +599,6 @@ float icm42688getgres(uint8_t gscale)
 /* Resets the imu, sets it to a default configuration. */
 static int imu_reset(FAR struct imu_dev_s *dev)
 {
-    int ret;
     uint8_t reg_val;
 
 #ifdef CONFIG_ICM42688_SPI
@@ -626,7 +613,6 @@ static int imu_reset(FAR struct imu_dev_s *dev)
     }
 #endif
 
-    printf("debug imu_reset send who\n");
     imu_lock(dev);
 
     /* Configure imu chip register*/
@@ -640,52 +626,46 @@ static int imu_reset(FAR struct imu_dev_s *dev)
         return ERROR;
     }
 
-    printf("debug imu_reset got right icm42688\n");
-    __imu_set_bank(dev, 0);
-    __imu_set_bank(dev, 0x01);
+	__imu_write_imu(dev, ICM42688_REG_BANK_SEL, 0);
+	__imu_write_imu(dev, ICM42688_REG_BANK_SEL, 1);
     nxsig_usleep(100000);
 
-    __imu_set_bank(dev, 1);
-    __imu_set_INTF_CONFIG4(dev, 0x02);
-    __imu_set_bank(dev, 0);
-    __imu_write_fifo_en(dev, 0x40); //Stream-to-FIFO Mode(page63)
+	__imu_write_imu(dev, ICM42688_REG_BANK_SEL, 1);
+	__imu_write_imu(dev,ICM42688_INTF_CONFIG4, 0x2);//4-wire SPI mode
+
+	__imu_write_imu(dev, ICM42688_REG_BANK_SEL, 0);
+    __imu_write_imu(dev, ICM42688_FIFO_CONFIG, 0x40); //stream-to-FIFO mode
 
     __imu_read_reg(dev, ICM42688_INT_SOURCE0, &reg_val, sizeof(reg_val));
-    __imu_write_reg(dev, ICM42688_INT_SOURCE0, 0x00, 1);
-    __imu_write_reg(dev, ICM42688_FIFO_CONFIG2, 0x00, 1);
-    __imu_write_reg(dev, ICM42688_FIFO_CONFIG3, 0x02, 1);
-    __imu_write_reg(dev, ICM42688_INT_SOURCE0, reg_val, sizeof(reg_val));
-    __imu_write_reg(dev, ICM42688_FIFO_CONFIG1, 0x63, 1); // Enable the accel and gyro to the FIFO
+    __imu_write_imu(dev, ICM42688_INT_SOURCE0, 0x00);
+    __imu_write_imu(dev, ICM42688_FIFO_CONFIG2, 0x00);
+    __imu_write_imu(dev, ICM42688_FIFO_CONFIG3, 0x02);
+    __imu_write_imu(dev, ICM42688_INT_SOURCE0, reg_val);
 
-    __imu_set_bank(dev, 0);
-    __imu_write_reg(dev, ICM42688_INT_CONFIG, 0x36, 1);
+    __imu_write_imu(dev, ICM42688_FIFO_CONFIG1, 0x63); // Enable the accel and gyro to the FIFO
+    __imu_write_imu(dev, ICM42688_INT_CONFIG, 0x36);
 	
-    __imu_set_bank(dev, 0);
     __imu_read_reg(dev, ICM42688_INT_SOURCE0, &reg_val, sizeof(reg_val));
     reg_val |= (1 << 2); //FIFO_THS_INT1_ENABLE
-    __imu_write_reg(dev, ICM42688_INT_SOURCE0, reg_val, sizeof(reg_val));
+    __imu_write_imu(dev, ICM42688_INT_SOURCE0, reg_val);
 
     g_accsensitivity = icm42688getares(AFS_8G);
-    __imu_set_bank(dev, 0);
-	
     __imu_read_reg(dev, ICM42688_ACCEL_CONFIG0, &reg_val, sizeof(reg_val));
     reg_val |= (AFS_8G << 5);   //量程 ±8g
     reg_val |= (AODR_50Hz);     //输出速率 50HZ
-    __imu_write_reg(dev, ICM42688_ACCEL_CONFIG0, reg_val, sizeof(reg_val));
+    __imu_write_imu(dev, ICM42688_ACCEL_CONFIG0, reg_val);
 
     g_gyrosensitivity = icm42688getgres(GFS_1000DPS);
-    __imu_set_bank(dev, 0);
     __imu_read_reg(dev, ICM42688_GYRO_CONFIG0, &reg_val, sizeof(reg_val));
     reg_val |= (GFS_1000DPS << 5);   //量程 ±1000dps
     reg_val |= (GODR_50Hz);     //输出速率 50HZ
-    __imu_write_reg(dev, ICM42688_GYRO_CONFIG0, reg_val, sizeof(reg_val));
+    __imu_write_imu(dev, ICM42688_GYRO_CONFIG0, reg_val);
 
-    __imu_set_bank(dev, 0);
-    __imu_read_reg(dev, ICM42688_PWR_MGMT0, &reg_val, sizeof(reg_val));
+    __imu_read_reg(dev, ICM42688_PWR_MGMT0, &reg_val, sizeof(reg_val)); //power on sensor
     reg_val &= ~(1 << 5);//使能温度测量
     reg_val |= ((3) << 2);//设置GYRO_MODE  0:关闭 1:待机 2:预留 3:低噪声
     reg_val |= (3);//设置ACCEL_MODE 0:关闭 1:关闭 2:低功耗 3:低噪声
-    __imu_write_reg(dev, ICM42688_PWR_MGMT0, reg_val, sizeof(reg_val));
+    __imu_write_imu(dev, ICM42688_PWR_MGMT0, reg_val);
     nxsig_usleep(1000);
 
     /* Disable i2c if we're on spi. */
@@ -743,13 +723,22 @@ static ssize_t imu_read(FAR struct file *filep, FAR char *buf, size_t len)
     FAR struct inode *inode = filep->f_inode;
     FAR struct imu_dev_s *dev = inode->i_private;
     size_t send_len = 0;
+    FAR uint8_t data[14];
 
     imu_lock(dev);
 
+	send_len = __imu_read_reg(dev, ICM42688_TEMP_DATA1, data, sizeof(data));
+
+	if ( send_len )
+	{
+		memcpy(buf, data, send_len);
+	}
+
+    # if 0
     /* Populate the register cache if it seems empty. */
     if (!dev->bufpos)
     {
-        __imu_read_imu(dev, &dev->buf);
+        __imu_read_imu(dev, ICM42688_TEMP_DATA1, &dev->buf);
     }
 
     /* Send the lesser of: available bytes, or amount requested. */
@@ -772,7 +761,7 @@ static ssize_t imu_read(FAR struct file *filep, FAR char *buf, size_t len)
     {
         dev->bufpos = 0;
     }
-
+    #endif
     imu_unlock(dev);
 
     return send_len;
@@ -787,10 +776,53 @@ static ssize_t imu_write(FAR struct file *filep, FAR const char *buf,
 {
     FAR struct inode *inode = filep->f_inode;
     FAR struct imu_dev_s *dev = inode->i_private;
+	uint8_t buffer;
+	uint8_t reg = 0;
+	uint8_t i;
 
-    UNUSED(inode);
-    UNUSED(dev);
+	syslog(LOG_INFO, "imu register: %u %s\n", strlen(buf), buf);
+	if (0 == strncmp(buf, "self-test", 9))
+	{
+		syslog(LOG_INFO, "will invoke self-test \n");
+		return 0;
+	}
+
+	if (0 == strncmp(buf, "0x", 2))
+	{
+		if ( strlen(buf) > 5 )
+		{
+			syslog(LOG_INFO, "Invalid register address too long\n");
+			return -EINVAL;
+		}
+
+		for ( i=3; i > 1; i --)
+		{
+			if (buf[i] >= '0' && buf[i] <= '9')
+			{
+				reg += (3-i) ? 16* (buf[i]-'0') : (buf[i]-'0');
+			}
+			else if (buf[i]>= 'A' && buf[i] <= 'F')
+			{
+				reg += (3-i) ? 16 * (buf[i]-'A' + 10) : (buf[i]-'A' +10);
+			}
+			else
+			{
+				syslog(LOG_INFO, "Invalid register hex address\n");
+				return -EINVAL;
+			}
+		}
+	} else {
+		reg = atoi(buf);
+	}
+
+	len = __imu_read_reg(dev, reg, &buffer, 1);
+	syslog(LOG_INFO, "imu_register: %#X -- %#X\n", reg, buffer);
+
+	UNUSED(inode);
+    /*
+	UNUSED(dev);
     snerr("ERROR: %p %p %d\n", inode, dev, len);
+	*/
 
     return len;
 }
@@ -831,7 +863,6 @@ int icm42688_register(FAR const char *path, FAR struct imu_config_s *config)
         return -ENOMEM;
     }
 
-    printf("debugimu icm42688_register_1 \n");
     memset(priv, 0, sizeof(*priv));
     nxmutex_init(&priv->lock);
 
@@ -845,13 +876,12 @@ int icm42688_register(FAR const char *path, FAR struct imu_config_s *config)
     if (ret < 0)
     {
         snerr("ERROR: Failed to configure icm42688: %d\n", ret);
-        printf("debugimu icm42688_register imu reset failed \n");
         nxmutex_destroy(&priv->lock);
 
         kmm_free(priv);
         return ret;
     }
-    printf("debugimu icm42688_register done \n");
+
     /* Register the device node. */
     ret = register_driver(path, &g_imu_fops, 0666, priv);
     if (ret < 0)
@@ -861,6 +891,8 @@ int icm42688_register(FAR const char *path, FAR struct imu_config_s *config)
         kmm_free(priv);
         return ret;
     }
+
+    syslog(LOG_INFO, "icm42688 register done.\n");
 
     return OK;
 }

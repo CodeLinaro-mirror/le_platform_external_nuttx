@@ -93,6 +93,30 @@ int stm32_bringup(void)
   int ret = OK;
 
   printf("stm32 bringup\n");
+
+#ifdef HAVE_RTC_DRIVER
+  lower = stm32_rtc_lowerhalf();
+  if (!lower)
+    {
+      syslog(LOG_ERR,
+             "ERROR: Failed to instantiate the RTC lower-half driver\n");
+    }
+  else
+    {
+      /* Bind the lower half driver and register the combined RTC driver
+       * as /dev/rtc0
+       */
+
+      ret = rtc_initialize(0, lower);
+      if (ret < 0)
+        {
+          syslog(LOG_ERR,
+                 "ERROR: Failed to bind/register the RTC driver: %d\n",
+                 ret);
+        }
+    }
+#endif
+
 #ifdef CONFIG_FS_PROCFS
   /* Mount the procfs file system */
 
@@ -158,5 +182,7 @@ printf("stm32_gpio_initialize done \n");
   }
   syslog(LOG_INFO, "ADC  have initialized\n");
 #endif
+
+  setlogmask(LOG_UPTO(LOG_INFO));
   return ret;
 }

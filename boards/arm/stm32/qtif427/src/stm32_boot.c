@@ -145,6 +145,15 @@ void board_initialize(void)
 }
 #endif
 
+#ifdef CONFIG_BOARD_LATE_INITIALIZE
+void board_late_initialize(void)
+{
+  /* Perform board-specific initialization */
+
+  stm32_bringup();
+}
+#endif
+
 
 /******************************stm32_adc***********************************/
 
@@ -191,8 +200,7 @@ int stm32_adc_setup(void)
 {
 	static bool initialized = false;
 	struct adc_dev_s *adc1;
-	struct adc_dev_s *adc2;
-	int ret1, ret2;
+	int ret1;
 	int i;
 
 	/* Check if we have already initialized */
